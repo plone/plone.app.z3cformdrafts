@@ -1,0 +1,272 @@
+========================
+Dexterity Drafts Support
+========================
+
+We'll need a logged in test browser::
+
+  >>> from Products.Five.testbrowser import Browser
+  >>> browser = Browser()
+  >>> browser.handleErrors = False
+  >>> self.app.acl_users.userFolderAddUser('root', 'secret', ['Manager'], [])
+  >>> browser.addHeader('Authorization', 'Basic root:secret')
+
+
+Dexterity Types Configlet
+-------------------------
+
+Once the 'Dexterity Content Configlet' product is installed, site managers
+can navigate to the configlet via the control panel::
+
+  >>> browser.open('http://nohost/plone')
+  >>> browser.getLink('Site Setup').click()
+  >>> browser.getLink('Dexterity Content Types').click()
+  >>> browser.url
+  'http://nohost/plone/@@dexterity-types'
+  >>> 'Dexterity content types' in browser.contents
+  True
+
+
+Adding a content type
+---------------------
+
+Let's add a 'Plonista' content type to keep track of members of the Plone
+community::
+
+  >>> browser.getControl('Add New Content Type').click()
+  >>> browser.getControl('Type Name').value = 'Plonista'
+  >>> browser.getControl('Add').click()
+  >>> browser.url
+  'http://nohost/plone/dexterity-types'
+
+Now we should also have a 'plonista' FTI in portal_types::
+
+  >>> 'plonista' in self.portal.portal_types
+  True
+
+The new type should have the dublin core behavior assigned by default::
+
+  >>> plonista = self.portal.portal_types.plonista
+  >>> 'plone.app.dexterity.behaviors.metadata.IDublinCore' in plonista.behaviors
+  True
+  >>> 'document_icon' in plonista.getIcon()
+  True
+
+
+Enable draft behaviors
+----------------------
+
+Enable the IDraftable and IDraftSaveBehavior from the dexterity-types manager
+
+  >>> browser.open('http://nohost/plone/@@dexterity-types')
+  >>> browser.getLink('Plonista').click()
+  >>> browser.getLink('Behaviors').click()
+  >>> browser.getControl(name='form.widgets.plone.app.drafts.interfaces.IDraftable:list').value = ['selected']
+  >>> browser.getControl(name='form.widgets.plone.app.dexterity.behaviors.drafts.IDraftSaveBehavior:list').value = ['selected']
+  >>> browser.getControl('Save').click()
+  >>> self.portal.portal_types.plonista.behaviors
+  ['plone.app.dexterity.behaviors.metadata.IDublinCore', 'plone.app.content.interfaces.INameFromTitle', 'plone.app.dexterity.behaviors.drafts.IDraftSaveBehavior', 'plone.app.drafts.interfaces.IDraftable']
+
+
+Viewing a non-editable schema
+-----------------------------
+
+If a type's schema is not stored as XML in its FTI's schema property, it cannot
+currently be edited through the web.  However, the fields of the schema can at
+least be listed.
+
+  >>> from zope.interface import Interface
+  >>> from zope import schema
+  >>> import plone.app.dexterity.tests
+  >>> class IFilesystemSchema(Interface):
+  ...     irc_nick = schema.TextLine(title=u'IRC Nickname')
+  >>> plone.app.dexterity.tests.IFilesystemSchema = IFilesystemSchema
+  >>> plonista.schema = 'plone.app.dexterity.tests.IFilesystemSchema'
+  >>> browser.open('http://nohost/plone/dexterity-types/plonista')
+  >>> 'crud-edit.form.buttons.delete' in browser.contents
+  False
+  >>> 'IRC Nickname' in browser.contents
+  True
+
+add content ++add++
+-------------------
+
+Add an instance
+
+  >>> browser.open('http://nohost/plone')
+  >>> browser.getLink('Plonista').click()
+  >>> browser.getControl('Title').value = 'Jason Mehring'
+  >>> browser.getControl('IRC Nickname').value = 'jj'
+
+Confirm 'Draft' button exists
+
+  >>> browser.getControl('Draft').click()
+  >>> browser.url
+  'http://nohost/plone/++add++plonista'
+
+Confirm form contains draft data
+
+  >>> browser.getControl('Title').value
+  'Jason Mehring'
+  >>> browser.getControl('IRC Nickname').value
+  'jj'
+
+Abandon draft and try adding content type again.  Data should still be saved in
+draft
+
+  >>> browser.open('http://nohost/plone')
+  >>> browser.getLink('Plonista').click()
+
+Confirm form contains draft data
+
+  >>> browser.getControl('Title').value
+  'Jason Mehring'
+  >>> browser.getControl('IRC Nickname').value
+  'jj'
+
+Submit the draft
+
+  >>> browser.getControl('Save').click()
+  >>> browser.url
+  'http://nohost/plone/jason-mehring/view'
+
+Confirm draft was removed
+-------------------------
+
+If 'Title' and 'IRC Nickname' have no values, the draft was successfuly removed
+by previous 'Submit'.  A fresh draft will now be created.
+
+  >>> browser.open('http://nohost/plone')
+  >>> browser.getLink('Plonista').click()
+  >>> browser.getControl('Title').value
+  ''
+  >>> browser.getControl('IRC Nickname').value
+  ''
+
+Add back in some data so we can test to make sure cancel will remove the draft
+as well
+
+  >>> browser.getControl('Title').value = 'Jason Mehring'
+  >>> browser.getControl('IRC Nickname').value = 'jj'
+  >>> browser.getControl('Draft').click()
+  >>> browser.getControl('Title').value
+  'Jason Mehring'
+  >>> browser.getControl('IRC Nickname').value
+  'jj'
+  >>> browser.getControl('Cancel').click()
+  >>> browser.url
+  'http://nohost/plone'
+
+Check and make sure 'Cancel' removed the draft
+
+  >>> browser.open('http://nohost/plone')
+  >>> browser.getLink('Plonista').click()
+  >>> browser.getControl('Title').value
+  ''
+  >>> browser.getControl('IRC Nickname').value
+  ''
+  >>> browser.getControl('Cancel').click()
+  >>> browser.url
+  'http://nohost/plone'
+
+Edit content @@edit
+-------------------
+
+Lets to it all over again; this time for edit
+
+  >>> browser.open('http://nohost/plone/jason-mehring/edit')
+
+Confirm Existing values in edit form draft
+
+  >>> browser.getControl('Title').value
+  'Jason Mehring'
+  >>> browser.getControl('IRC Nickname').value
+  'jj'
+
+Lets change the value to something else now
+
+  >>> browser.getControl('Title').value = 'Jason Mehring - version 2'
+  >>> browser.getControl('IRC Nickname').value = 'jj - version 2'
+
+Confirm 'Draft' button exists
+
+  >>> browser.getControl('Draft').click()
+  >>> browser.url
+  'http://nohost/plone/jason-mehring/edit'
+
+Confirm form contains draft data
+
+  >>> browser.getControl('Title').value
+  'Jason Mehring - version 2'
+  >>> browser.getControl('IRC Nickname').value
+  'jj - version 2'
+
+#Check to make sure original content still has original data in it and that we
+#did not overwrite it somehow
+#
+#  >>> browser.open('http://nohost/plone/jason-mehring/view')
+#  >>> browser.getControl('Draft').click()
+#  >>> browser.getControl('Title').value
+#  'Jason Mehring'
+#  >>> browser.getControl('IRC Nickname').value
+#  'jj'
+
+Edit content type again and confirm data was stored in draft ok
+
+  >>> browser.open('http://nohost/plone/jason-mehring/edit')
+  >>> browser.getControl('Title').value
+  'Jason Mehring - version 2'
+  >>> browser.getControl('IRC Nickname').value
+  'jj - version 2'
+
+Submit the draft
+
+  >>> browser.getControl('Save').click()
+  >>> browser.url
+  'http://nohost/plone/jason-mehring'
+
+#Confirm draft was removed
+#-------------------------
+#If 'Title' and 'IRC Nickname' have no values, the draft was successfuly removed
+#by previous 'Submit'.  A fresh draft will now be created.
+#
+#  >>> browser.open('http://nohost/plone')
+#  >>> browser.getControl('Title').value
+#  ''
+#  >>> browser.getControl('IRC Nickname').value
+#  ''
+
+Add back in some data so we can test to make sure cancel will remove the draft
+as well
+
+  >>> browser.open('http://nohost/plone/jason-mehring/edit')
+  >>> browser.getControl('Title').value = 'Jason Mehring - version 3'
+  >>> browser.getControl('IRC Nickname').value = 'jj - version 3'
+  >>> browser.getControl('Draft').click()
+  >>> browser.getControl('Title').value
+  'Jason Mehring - version 3'
+  >>> browser.getControl('IRC Nickname').value
+  'jj - version 3'
+  >>> browser.getControl('Cancel').click()
+  >>> browser.url
+  'http://nohost/plone/jason-mehring'
+
+Check and make sure 'Cancel' removed the draft
+
+  >>> browser.open('http://nohost/plone/jason-mehring/edit')
+  >>> browser.getControl('Title').value
+  'Jason Mehring - version 2'
+  >>> browser.getControl('IRC Nickname').value
+  'jj - version 2'
+  >>> browser.getControl('Cancel').click()
+  >>> browser.url
+  'http://nohost/plone/jason-mehring'
+
+
+TODO:
+- make sure we test images that they display and delete and replace
+- turn on ajax validation ??  Not sure if possible; but that would help test any
+  problems ajax validation may provide
+- need to somehow check that the view is rendered properly with data that came
+  from draft.. one way is to @@edit page to confirm data is as expected... gotta
+  make sure that drafts are being removed properly so its not a cached draft if
+  checking that way

@@ -1,0 +1,9 @@
+setuptools
+plone.dexterity
+plone.namedfile
+plone.app.drafts
+plone.app.textfield
+plone.z3cformbuttonoverrides
+zope.interface
+zope.component
+z3c.form

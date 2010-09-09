@@ -1,0 +1,25 @@
+Metadata-Version: 1.0
+Name: plone.app.z3cformdrafts
+Version: 0.1.0dev
+Summary: Adds drafts suppurt for z3cforms
+Home-page: http://pypi.python.org/pypi/plone.app.z3cformdrafts
+Author: Jason Mehring
+Author-email: dexterity-development@googlegroups.com
+License: GPL
+Description: Coming Soon...
+        
+        
+        Changelog
+        =========
+        
+        0.1.0 - 2010-05-15
+        ------------------
+        
+        * Intial Release
+        
+        
+Keywords: plone zc3form drafts
+Platform: UNKNOWN
+Classifier: Framework :: Plone
+Classifier: Programming Language :: Python
+Classifier: Topic :: Software Development :: Libraries :: Python Modules

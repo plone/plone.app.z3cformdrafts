@@ -1,0 +1,56 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:zcml="http://namespaces.zope.org/zcml"
+    xmlns:plone="http://namespaces.plone.org/plone"
+    i18n_domain="plone.app.z3cformdrafts">
+
+    <!-- change to plone.z3cform.button?? -->
+    <configure
+        zcml:condition="installed plone.app.drafts">
+
+        <!-- IDraftBehavior Adapter -->
+        <adapter factory=".drafts.Z3cFormDraft" />
+
+        <!-- zc3form will adapt these.  this is where we override
+             the buttons and handlers -->
+        <adapter
+            for="z3c.form.interfaces.IAddForm
+                 plone.app.drafts.interfaces.IDraft
+                 zope.interface.Interface"
+            factory="plone.z3cformbuttonoverrides.buttonoverrides.ButtonActions"
+            />
+        <adapter
+            for="z3c.form.interfaces.IEditForm
+                 plone.app.drafts.interfaces.IDraft
+                 zope.interface.Interface"
+            factory="plone.z3cformbuttonoverrides.buttonoverrides.ButtonActions"
+            />
+
+        <!-- TODO: Get rid of references to dexterity; go with z3cform -->
+
+        <!-- Draft DefaultAddForm button & handler overrides -->
+        <subscriber
+        for="plone.dexterity.browser.add.DefaultAddForm
+             plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
+        handler=".buttonoverrides.AddSubmitDraftButtonAndHandlerSubscriber"
+        />
+        <subscriber
+        for="plone.dexterity.browser.add.DefaultAddForm
+             plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
+        handler=".buttonoverrides.AddCancelDraftButtonAndHandlerSubscriber"
+        />
+
+        <!-- Draft DefaultEditForm button & handler overrides -->
+        <subscriber
+        for="plone.dexterity.browser.edit.DefaultEditForm
+             plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
+        handler=".buttonoverrides.EditSubmitDraftButtonAndHandlerSubscriber"
+        />
+        <subscriber
+        for="plone.dexterity.browser.edit.DefaultEditForm
+             plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
+        handler=".buttonoverrides.EditCancelDraftButtonAndHandlerSubscriber"
+        />
+
+    </configure>
+</configure>
