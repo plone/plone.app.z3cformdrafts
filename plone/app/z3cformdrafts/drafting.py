@@ -84,6 +84,9 @@ class DraftingZ3cFormDataContext(object):
 
         # Make sure cache is created fresh incase context changed from last visit
         # (empty draft)
+        # Draft has to be 'marked' with additional interfaces before the proxy
+        # is created since the proxy caches __providedBy__ and therefore anything
+        # added after proxy is created will not exist in cache
         if (not IZ3cDraft.providedBy(draft)
             and self.content.portal_type != self.form.portal_type
             ):
@@ -96,15 +99,17 @@ class DraftingZ3cFormDataContext(object):
                     setDefaults = True
 
                 # Provide default value on draft
+                # (uses standard datamanager since proxy is not yet created)
                 if setDefaults == True:
-                    setattr(draft, field.field.getName(), field.field.default)
+                    dm = zope.component.getMultiAdapter(
+                        (draft, field.field), interfaces.IDataManager)
+                    value = field.field.default or field.field.missing_value
+                    dm.set(value)
 
         if not IZ3cDraft.providedBy(draft):
             zope.interface.alsoProvides(draft, IZ3cDraft)
 
         proxy = Z3cFormDraftProxy(draft, self.content)
-
-        IZ3cDraft.providedBy(proxy)
 
         # TODO: MODIFY INTERFACE to include DRAFT field; not just marker
         self.request['DRAFT'] = proxy
