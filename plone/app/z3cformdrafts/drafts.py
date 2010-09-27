@@ -59,6 +59,10 @@ class Z3cFormDraft(object):
 
         self.formDataNotToSave = {}
         self.draftRequestForm = {}
+        self.validWidgetItems = []
+
+        self.ORIGINAL_FORM = None
+        self.ORIGINAL_OTHER = None
 
         self.draft = None
 
@@ -70,22 +74,39 @@ class Z3cFormDraft(object):
     def setupDraftRequest(self):
         """Sets up the request to make it work with drafting
         """
-        self.request['ORIGINAL_FORM'] = self.request.form.copy()
-        self.request['ORIGINAL_OTHER'] = self.request.other.copy()
-        self.request.form = {}
+        # Need to process form, update widgets, etc
+        self.form.update()
+
+        #self.request['ORIGINAL_FORM'] = self.request.form.copy()
+        #self.request['ORIGINAL_OTHER'] = self.request.other.copy()
+        self.ORIGINAL_FORM = self.request.form.copy()
+        self.ORIGINAL_OTHER = self.request.other.copy()
+        #self.request.form = {}
+        self.request['DRAFT'] = self.draft
+        self.request.form = getattr(self.draft, '_form', {}).copy()
+        #self.draftRequestForm = getattr(self.draft, '_form', {}).copy()
+
+        # Mark request as IDraft so other modules will know a draft is available
+        zope.interface.alsoProvides(self.request, IZ3cDraft, IZ3cDrafting)
 
     def restoreRequest(self):
         """Restores draft to its original state before drafting was applied
         incase there were drafting errors and we need to revert
         """
-        self.request.form = self.request.ORIGINAL_FORM
-        self.request.other = self.request.ORIGINAL_OTHER
+        self.request.form = self.ORIGINAL_FORM
+        self.request.other = self.ORIGINAL_OTHER
 
     def updateRequest(self, key, value):
         """Update the request.form and .other with supplied value pairs
         """
         self.request.form[key] = value
         self.request.other[key] = value
+
+    def removeFromRequest(self, key):
+        """Remove item entries form the request.form and .other
+        """
+        self.request.form.pop(key, None)
+        self.request.other.pop(key, None)
 
     def getDraft(self, content, request, portal_type, create=False):
         """Tries to get or set the draft for form content object
@@ -103,17 +124,23 @@ class Z3cFormDraft(object):
 
         # Initially populate the request from EditForm context
         # Draft will be saved with this data for future visits to page
-        if (('-C' in self.request.ORIGINAL_FORM or len(self.request.ORIGINAL_FORM) == 0)
+        #if (('-C' in self.request.ORIGINAL_FORM or len(self.request.ORIGINAL_FORM) == 0)
+        if (('-C' in self.request.form or len(self.request.form) == 0)
             and len(self.draftRequestForm) == 0
             and interfaces.IEditForm.providedBy(self.form)):
 
             # Need to update widgets, etc
-            self.form.update()
+            #self.form.update()
+
+            # self.request.form has now been 'processed' so now swich draft
+            # copy in its place
+            self.setupDraftRequest()
 
             # Populate request from content object (initial load)
             for widget in self.form.widgets.values():
                 value = IWidgetInputConverter(widget).toWidgetInputValue(widget.value)
                 self.updateRequest(widget.name, value)
+                self.validWidgetItems.append(widget.name)
 
                 # If widgets contains the attribute 'widgets', there is another
                 # list of widgets to deal with; more than likely from an IList
@@ -121,79 +148,204 @@ class Z3cFormDraft(object):
                     for subWidget in widget.widgets:
                         value = IWidgetInputConverter(subWidget).toWidgetInputValue(subWidget.value)
                         self.updateRequest(subWidget.name, value)
+                        self.validWidgetItems.append(subWidget.name)
         else:
             # Don't save anything on draft that is button action related or
             # not directly releated to a widget since data may be InstanceType
             # and / or not needed in future request (like ajax validation values)
+            widgetItems = {}
             buttonsPattern = re.compile('form.[\d\w.]*buttons[\d\w.]+')
-            for key, value in self.request.ORIGINAL_FORM.items():
+            for key, value in self.request.form.items():
                 # Don't keep empty '-C' indicator form indicator since we are
                 # going to populate the form with draft
                 if key == '-C':
                     pass
                 elif buttonsPattern.match(key):
                     self.formDataNotToSave[key] = value
-                    self.request.other.pop(key, None)
+                    self.removeFromRequest(key)
                 elif key.startswith('form.widgets'):
-                    self.request.form[key] = value
                     self.request.other.pop(key, None)
+                    widgetItems[key] = value
 
             # Make sure everything coming from request.  Otherwise things
             # may be pulled from context
             self.form.ignoreContext = True
 
             # Need to update widgets, etc
-            self.form.update()
+            #self.form.update()
+
+            # self.request.form has now been 'processed' so now swich draft
+            # copy in its place
+            self.setupDraftRequest()
+            self.request.form.update(widgetItems)
+            self.request.form.update(self.formDataNotToSave)
+
+            # Create a list of possible good wiget items that can be stored on
+            # draft; we will use this list later and remove entries as required
+            for key in self.request.form:
+                if key.startswith('form.widgets'):
+                    self.validWidgetItems.append(key)
 
             # loop through the widgets to get values to populate draft
             for widget in self.form.widgets.values():
-
-                # Check sub widgets first, since they can effect values on
-                # parent widget..
+                # Store the orginal sub-widgets names before we update
+                # and any related form items together
                 if getattr(widget, 'widgets', None) is not None:
+                    originalSubWidgets = []
+                    originalSubWidgetsFormItems = {}
+
+                    for subWidget in widget.widgets:
+                        subWidget.update()
+                        originalSubWidgets.append(subWidget)
+
+                    widget.update()
+
+                    # If the len(widget.widgets) < len(originalSubWidgets) then
+                    # something was removed; so figure it out to recreate draft form
+                    # for example (not real results):
+                    #
+                    # Submitted Form:
+                    # A: form.widgets.files.0 = <NamedFile>
+                    # B: form.widgets.files.1 = <NamedFile>
+                    # C: form.widgets.files.2 = <NamedFile>
+                    # D: form.widgets.files.4 = <NamedFile>
+                    # widget.value = <0, 1, 2, 3>
+                    #
+                    # But B and C were marked to be deleted; so when widget.update()
+                    # is applied, widget value will be:
+                    # widget.value = <0, 1>
+                    #
+                    # So we need to figure out what was removed and make sure
+                    # it does not end up on draft (delete anything related to
+                    # B and C) and then move all values from D to
+                    # B (form.widgets.files.1), including any other value items
+                    # related to the widget.
+                    #
+                    # Note:  If we didn't care about other changes to to the
+                    # indivitual sub widgets, like actions, etc all we would need
+                    # to do is remove all widget related data and only add back the
+                    # sub widgets themselves; but this routine will allow someone
+                    # to remove multiple subWidgets and modify existing ones at
+                    # the same time, and store results on draft
+
+                    # Grab any related seb widget item and store them for
+                    # retreival later; then remove them from self.request.form
+                    if len(widget.widgets) < len(originalSubWidgets):
+                        for subWidget in originalSubWidgets:
+                            miniform = {}
+                            todelete = []
+                            for key, value in self.request.form.items():
+                                if key.startswith(subWidget.name):
+                                    miniform[key] = value
+                                    self.removeFromRequest(key)
+                                    if key in self.validWidgetItems:
+                                        self.validWidgetItems.remove(key)
+                                elif key.startswith(widget.name):
+                                    todelete.append(key)
+                            originalSubWidgetsFormItems[subWidget] = miniform
+                        for key in todelete:
+                            self.removeFromRequest(key)
+
+                        #REMOVE: DEBUG
+                        widget.extract()
+
+                        for subWidget in widget.widgets:
+                            while len(originalSubWidgets) != 0 and subWidget.value != originalSubWidgets[0].value:
+                                originalSubWidgets.pop(0)
+
+                            if len(originalSubWidgets) == 0:
+                                break
+
+                            #if subWidget.name != originalSubWidgets[0].name:
+                            #    #self.updateRequest(subWidget.name, originalSubWidgets[0].value)
+                            #    self.updateRequest(subWidget.name, subWidget.value)
+
+                            # Move any related widget data over
+                            for key, value in originalSubWidgetsFormItems[originalSubWidgets[0]].items():
+                                newKey = key.replace(originalSubWidgets[0].name, subWidget.name)
+                                self.updateRequest(newKey, value)
+                                if newKey not in self.validWidgetItems:
+                                    self.validWidgetItems.append(newKey)
+
+                            originalSubWidgets.pop(0)
+
+                    # Check sub widgets first, since they can effect values on
+                    # parent widget..
                     for subWidget in widget.widgets:
                         self.setRequestFormItems(subWidget)
 
                 # set newRequestForm value from widget value
                 self.setRequestFormItems(widget)
 
-                # Update widget with newRequestForm, since widget.value may change
-                # based on sub-wigets being set up from draft
-                if getattr(widget, 'widgets', None) is not None:
-                    widget.update()
-                    self.setRequestFormItems(widget, temporaryRequestForm=True)
-
-            # Loop though draft and add anything missing to newRequestForm
-            for key, value in self.draftRequestForm.items():
-                if key not in self.request.form:
-                    self.updateRequest(key, value)
-
     def setRequestFormItems(self, widget, temporaryRequestForm=False):
         """Sets request.form value either from the widget.value or
         directly from the draft
         """
-        value = None
+        widget.update()
+        value = widget.value
 
-        if widget.value is not None:
-            value = IWidgetInputConverter(widget).toWidgetInputValue(widget.value)
+        # Check to see if there is a copy of the widget in draft
+        if widget.extract() == NO_VALUE:
+            value = self.draftRequestForm.get(widget.name, None)
+
+        if value is not None:
+            value = IWidgetInputConverter(widget).toWidgetInputValue(value)
+
+            if value == NO_VALUE:
+                value = self.draftRequestForm.get(widget.name, None)
+
+        if value is not None:
+            # Store a list of valid widget names so when we go to save the draft,
+            # we will only store actual widget items
+            if widget.name not in self.validWidgetItems:
+                self.validWidgetItems.append(widget.name)
+            self.updateRequest(widget.name, value)
+        else:
+            # value is None; therefore it is meant to be removed; don't save on
+            # draft
+            for key in self.validWidgetItems:
+                if key.startswith(widget.name):
+                    if key in self.validWidgetItems:
+                        self.validWidgetItems.remove(key)
+
+        # TODO: optimize this so we don't need to loop though form every time!
+        # Remove an widget items from the validWigdetItems list so they
+        # will not be stored on draft
+        #for key in self.request.form:
+        #    if (key.startswith(widget.name)
+        #        and key not in self.validWidgetItems
+        #        and value is not None):
+        #             self.validWidgetItems.append(key)
 
         # Ajax validation sends a string sometimes, and we don't want to
         # overwrite draft if its not a NamedFile type
-        if self.isKssValidation == True and INamed.providedBy(widget.field):
-            value = self.draftRequestForm.get(widget.name, None)
+        #if self.isKssValidation == True and INamed.providedBy(widget.field):
+        #    value = self.draftRequestForm.get(widget.name, None)
+
+
+
+        #if widget.value is not None:
+        #    value = IWidgetInputConverter(widget).toWidgetInputValue(widget.value)
+
+        # Ajax validation sends a string sometimes, and we don't want to
+        # overwrite draft if its not a NamedFile type
+        #if self.isKssValidation == True and INamed.providedBy(widget.field):
+        #    value = self.draftRequestForm.get(widget.name, None)
 
         # If value is None; see if its availble in draft
-        if (not bool(widget.value) and widget.extract() == NO_VALUE):
-            value = self.draftRequestForm.get(widget.name, None)
+        #if (not bool(widget.value) and widget.extract() == NO_VALUE):
+        #    value = self.draftRequestForm.get(widget.name, None)
 
         # TODO:  Test to see if I need to do a check before writing since
         # newRequestForm could have already been set after running
         # widget.widgets and the draft copy will be gone
         # so something like:
         # ->> if widget.name in self.newRequestForm and not widget.extract() != NO_VALUE:
-        self.updateRequest(widget.name, value)
+        #self.updateRequest(widget.name, value)
+        #widget.update()
 
-        if temporaryRequestForm == False:
+        DEBUG = True
+        if temporaryRequestForm == False and DEBUG == False:
             # Remove entry from request.form
             self.request.other.pop(widget.name, None)
             self.draftRequestForm.pop(widget.name, None)
@@ -204,7 +356,7 @@ class Z3cFormDraft(object):
             # the second match
             values = {}
 
-            # Store any related widget key/value paris in newRequest
+            # Store any related widget key/value items in new request
             # Note: any buttons already got striped from request earlier so they
             # won't mess things up
             for key, value in self.request.other.items():
@@ -215,17 +367,17 @@ class Z3cFormDraft(object):
             # Grab any widget related key/value pairs from draft and put in
             # newRequestForm, only if it does not exist in newRequestForm, otherwise
             # remove it from draft copy so it will not get re-added later
-            for key, value in self.draftRequestForm.items():
-                if key.startswith(widget.name):
-                    # Only allow names starting with letters, so we don't end up
-                    # grabbing an old list value that was deleted
-                    widgetPattern = re.compile('%s.[\\w.]+' % widget.name)
-                    if (widgetPattern.match(key)
-                        and widget.extract() == NO_VALUE
-                        and key not in self.request.form
-                        and key not in values):
-                        values[key] = value
-                    self.draftRequestForm.pop(key, None)
+            #for key, value in self.draftRequestForm.items():
+            #    if key.startswith(widget.name):
+            #        # Only allow names starting with letters, so we don't end up
+            #        # grabbing an old list value that was deleted
+            #        widgetPattern = re.compile('%s.[\\w.]+' % widget.name)
+            #        if (widgetPattern.match(key)
+            #            and widget.extract() == NO_VALUE
+            #            and key not in self.request.form
+            #            and key not in values):
+            #            values[key] = value
+            #        self.draftRequestForm.pop(key, None)
 
             self.request.form.update(values)
 
@@ -233,11 +385,15 @@ class Z3cFormDraft(object):
         """Saves a copy of the newly created newRequestForm in the draft
            Returns True if successful
         """
-        # Final check to make sure there are no InstanceTypes in newRequestForm
+        # Final check to make sure there are no InstanceTypes in new request form
+        # or non related items
         for key, value in self.request.form.items():
-            if type(value) == InstanceType:
-                self.formDataNotToSave[key] = value
-                self.request.form.pop(key, None)
+            if (key not in self.validWidgetItems
+                or type(value) == InstanceType
+                or key in self.formDataNotToSave):
+                if key not in self.formDataNotToSave:
+                    self.formDataNotToSave[key] = value
+                self.removeFromRequest(key)
 
         # Re-wrtie the form from draft incase anything was changed since last request
         # unless its identical
@@ -317,13 +473,13 @@ class Z3cFormDraft(object):
 
         # Add draft to request, and backs up request.form and request.other
         # incase we need to revert back to 'almost' original state
-        self.setupDraftRequest()
+        #self.setupDraftRequest()
 
         # Mark request as IDraft so other modules will know a draft is available
-        zope.interface.alsoProvides(self.request, IZ3cDraft, IZ3cDrafting)
+        #zope.interface.alsoProvides(self.request, IZ3cDraft, IZ3cDrafting)
 
         # Store draft in request and draft._form in draftRequestForm
-        self.request['DRAFT'] = self.draft
+        #self.request['DRAFT'] = self.draft
         self.draftRequestForm = getattr(self.draft, '_form', {}).copy()
 
         # Merge data from draft with request.form
