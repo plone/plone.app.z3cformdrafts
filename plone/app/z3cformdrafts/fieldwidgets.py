@@ -70,12 +70,13 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
 
             # Step 0. Determine whether the context should be ignored.
             #-------------------------------------------------------------------
-            #ignoreContext = self.ignoreContext
-            #if field.ignoreContext is not None:
-            #    ignoreContext = field.ignoreContext
-            ignoreContext = False
+            if IZ3cDraft.providedBy(self.content):
+                ignoreContext = False
+            else:
+                ignoreContext = self.ignoreContext
+                if field.ignoreContext is not None:
+                    ignoreContext = field.ignoreContext
             #-------------------------------------------------------------------
-
 
             # Step 1: Determine the mode of the widget.
             mode = self.mode

@@ -77,7 +77,6 @@ class DraftingZ3cFormDataContext(object):
         """If we are drafting a content item, record form data information to the
         draft, but read existing data from the underlying object.
         """
-
         draft = getCurrentDraft(self.request, create=self.create())
         if draft is None:
             return self.content
@@ -93,6 +92,14 @@ class DraftingZ3cFormDataContext(object):
             setDefaults = False
             for field in self.form.fields.values():
                 # Mark draft interface provided by field so it can be adapted
+                #
+                # TODO:  Note that it will adapt, but not properly, but enuogh
+                # to work for now; still need more interfaces added to draft I
+                # would think.  Example field has interface type:
+                # <InterfaceClass plone.app.dexterity.behaviors.metadata.IBasic>
+                # and you adapt it, you will get:
+                # <plone.app.drafts.draft.Draft object at 0xe7310ec>, therefore
+                # special get/set handlers will not be accessed in ++add++ form.
                 if not field.field.interface.providedBy(draft):
                     # Mark draft (add form)
                     zope.interface.alsoProvides(draft, field.field.interface)
@@ -110,6 +117,7 @@ class DraftingZ3cFormDataContext(object):
             zope.interface.alsoProvides(draft, IZ3cDraft)
 
         proxy = Z3cFormDraftProxy(draft, self.content)
+        IZ3cDraft.providedBy(proxy)
 
         # TODO: MODIFY INTERFACE to include DRAFT field; not just marker
         self.request['DRAFT'] = proxy
@@ -132,15 +140,15 @@ class ProxySpecification(ObjectSpecificationDescriptor):
         # Find the cached value and return it if possible
         # Only want it is its stored on draft otherwise it will not contain
         # any draft values
-        cached = getattr(inst._Z3cFormDraftProxy__draft, '_v__providedBy__', None)
-        if cached is not None:
-            return cached
+        #cached = getattr(inst._Z3cFormDraftProxy__draft, '_v__providedBy__', None)
+        #if cached is not None:
+        #    return cached
 
         # Get the interfaces implied by the class as a starting point.
         provided = implementedBy(cls)
 
         # Get interfaces directly provided by the draft proxy
-        provided += getattr(inst, '__provides__', provided)
+        provided += getattr(inst._Z3cFormDraftProxy__draft, '__provides__', provided)
 
         # Add the interfaces provided by the target
         target = aq_base(inst._Z3cFormDraftProxy__target)
@@ -149,7 +157,7 @@ class ProxySpecification(ObjectSpecificationDescriptor):
 
         provided += providedBy(target)
 
-        inst._v__providedBy__ = provided
+        #inst._v__providedBy__ = provided
         return provided
 
 
