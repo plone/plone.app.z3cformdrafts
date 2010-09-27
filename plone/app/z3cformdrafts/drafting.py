@@ -52,11 +52,11 @@ from zope.interface.declarations import ObjectSpecificationDescriptor
 from Acquisition import aq_base
 
 
-class DraftingZ3cFormDataContext(object):
+class Z3cFormDataContext(object):
 
     zope.interface.implements(IZ3cFormDataContext)
 
-    _create = False
+    createDraft = False
 
     # XXX: REMOVE; change to default z3cform provider
     #cacheProvider = FTIAwareSpecification
@@ -66,18 +66,11 @@ class DraftingZ3cFormDataContext(object):
         self.request = request
         self.form = form
 
-    def create(self):
-        """Indicates if creating a new draft is allowed.  Default is False
-        and will not create an new draft, but will use an existing draft,
-        if available
-        """
-        return self._create
-
     def adapt(self):
         """If we are drafting a content item, record form data information to the
         draft, but read existing data from the underlying object.
         """
-        draft = getCurrentDraft(self.request, create=self.create())
+        draft = getCurrentDraft(self.request, create=self.createDraft)
         if draft is None:
             return self.content
 

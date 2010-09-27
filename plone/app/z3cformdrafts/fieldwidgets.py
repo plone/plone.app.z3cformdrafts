@@ -39,17 +39,26 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
     #portal_type = None
     allowKssValidation = False
     ignoreContext = False
+    createDraft = False
+    draftWritable = True
 
     def __init__(self, form, request, content):
         super(FieldWidgets, self).__init__(form, request, content)
 
-        # Set up the draft (sets cookies, markers, etc)
-        beginDrafting(self.content, self.request, self.form.portal_type)
+        # Check to see if we were called by kss validation
+        isKssValidation = ('kss_z3cform_inline_validation' in request.getURL().split('/'))
+        if isKssValidation == True and self.allowKssValidation == False:
+            self.draftWritable = False
 
-        # TODO: adapt it
-        self.content = zope.component.getMultiAdapter((self.content,
-                                                       self.request,
-                                                       self.form), IZ3cFormDataContext).adapt()
+        # Set up the draft (sets cookies, markers, etc)
+        portal_type = getattr(self.form, 'portal_type', None)
+        beginDrafting(self.content, self.request, portal_type)
+
+        proxy = zope.component.getMultiAdapter((self.content,
+                                                self.request,
+                                                self.form), IZ3cFormDataContext)
+        proxy.createDraft = self.createDraft
+        self.content = proxy.adapt()
 
     def update(self):
         """See interfaces.IWidgets"""
@@ -128,13 +137,12 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
             #-------------------------------------------------------------------
             # Save converted widget value on draft if it different from what is
             # already stored on draft
-            if IZ3cDraft.providedBy(self.content):
+            if IZ3cDraft.providedBy(self.content) and self.draftWritable == True:
                 dm = zope.component.getMultiAdapter(
                     (self.content, field.field), interfaces.IDataManager)
                 value = interfaces.IDataConverter(widget).toFieldValue(widget.value)
-                ##if getattr(self.content, field.field.getName()) != value:
-                ##    dm.set(value)
-                dm.set(value)
+                if getattr(self.content, field.field.getName()) != value:
+                    dm.set(value)
             #-------------------------------------------------------------------
 
             zope.event.notify(AfterWidgetUpdateEvent(widget))

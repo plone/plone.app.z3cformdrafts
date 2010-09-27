@@ -34,9 +34,9 @@
     <!-- Basic IForm draft context draft/proxy adapter -->
     <adapter
         for="zope.interface.Interface
-             plone.app.drafts.interfaces.IDrafting
-             z3c.form.interfaces.IForm"
-        factory=".drafting.DraftingZ3cFormDataContext"
+             zope.interface.Interface
+             z3c.form.interfaces.IFieldsForm"
+        factory=".drafting.Z3cFormDataContext"
         />
 
     <!-- zc3form will adapt these.  this is where we override
@@ -79,12 +79,19 @@
     />
 
     <!-- Z3CFormDrafts field widget adapters -->
-    <!--adapter
-        for="z3c.form.interfaces.IFieldsForm
+    <adapter
+        for="z3c.form.interfaces.IAddForm
             z3c.form.interfaces.IFormLayer
             zope.interface.Interface"
         factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
         provides="z3c.form.interfaces.IWidgets"
-    /-->
+    />
+    <adapter
+        for="z3c.form.interfaces.IEditForm
+            z3c.form.interfaces.IFormLayer
+            zope.interface.Interface"
+        factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
+        provides="z3c.form.interfaces.IWidgets"
+    />
 
 </configure>
