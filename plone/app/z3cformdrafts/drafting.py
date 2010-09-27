@@ -74,12 +74,21 @@ class Z3cFormDataContext(object):
         portal_type = getattr(self.form, 'portal_type', None)
 
         # Can't really do a draft if we don't know the portal_type
-        if portal_type is None:
-            return self.content
+        #if portal_type is None:
+        #    return self.content
 
-        beginDrafting(self.content, self.request, portal_type)
-
+        beginDrafting(self.content, self.form)
         draft = getCurrentDraft(self.request, create=self.createDraft)
+
+        #from plone.app.z3cformdrafts.tempinterfaces import ITemporaryFileHandler
+        #handler = getMultiAdapter((self.content, self.request),
+        #                          ITemporaryFileHandler)
+        #from plone.app.z3cformdrafts.temporaryfile import TemporaryFileHandler
+        #handler = TemporaryFileHandler(self.content, self.request)
+        #draft = handler.get('draft')
+        #if draft is None and self.createDraft == True:
+        #    draft = handler.create()
+
         if draft is None:
             return self.content
 
@@ -89,7 +98,7 @@ class Z3cFormDataContext(object):
         # is created since the proxy caches __providedBy__ and therefore anything
         # added after proxy is created will not exist in cache
         if (not IZ3cDraft.providedBy(draft)
-            and self.content.portal_type != self.form.portal_type
+            and self.content.portal_type != portal_type
             ):
             setDefaults = False
             for field in self.form.fields.values():
