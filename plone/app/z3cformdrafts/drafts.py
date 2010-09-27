@@ -11,6 +11,8 @@ import zope.component
 from z3c.form import interfaces
 from z3c.form.interfaces import NO_VALUE
 
+from plone.z3cform.interfaces import IWidgetInputConverter
+
 from plone.namedfile.interfaces import INamed
 from plone.app.textfield.interfaces import IRichText
 
@@ -90,18 +92,14 @@ class Z3cFormDraft(object):
 
             # Populate request from content object (initial load)
             for widget in self.form.widgets.values():
-                # xxx HACK for RichTextValue since that value we need is .output
-                # interfaces.IDataConverter(widget).toFieldValue(widget.value)
-                # won't work?? Is that a bug in the dataconverter, or maybe there
-                # is a better way to get the widgets value
-                value = getattr(widget.value, 'raw', widget.value)
+                value = IWidgetInputConverter(widget).toWidgetInputValue(widget.value)
                 self.updateRequest(widget.name, value)
 
                 # If widgets contains the attribute 'widgets', there is another
                 # list of widgets to deal with; more than likely from an IList
                 if getattr(widget, 'widgets', None) is not None:
                     for widgetWidgets in widget.widgets:
-                        value = getattr(widgetWidgets.value, 'raw', widgetWidgets.value)
+                        value = IWidgetInputConverter(widget).toWidgetInputValue(widget.value)
                         self.updateRequest(widgetWidgets.name, value)
         else:
             # Don't save anything on draft that is button action related or
@@ -157,11 +155,7 @@ class Z3cFormDraft(object):
         value = None
 
         if widget.value is not None:
-            value = interfaces.IDataConverter(widget).toFieldValue(widget.value)
-
-            # Hack for RichText
-            if IRichText.providedBy(widget.field):
-                value = value.raw
+            value = IWidgetInputConverter(widget).toWidgetInputValue(widget.value)
 
         # Ajax validation sends a string sometimes, and we don't want to
         # overwrite draft if its not a NamedFile type
