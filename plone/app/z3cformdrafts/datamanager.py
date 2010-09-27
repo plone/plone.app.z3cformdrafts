@@ -37,6 +37,8 @@ from plone.app.z3cformdrafts.interfaces import IDraftableField
 from plone.app.z3cformdrafts.interfaces import IZ3cDraft
 from plone.app.drafts.interfaces import IDraftProxy
 
+from plone.app.z3cformdrafts.drafting import Z3cFormDraftProxy
+
 class AttributeField(DataManager):
     """Attribute field."""
     #zope.component.adapts(
@@ -71,12 +73,12 @@ class AttributeField(DataManager):
 
     def get(self):
         """See z3c.form.interfaces.IDataManager"""
-        adaptedContext = self.adapted_context
-        #if IAnnotations.providedBy(adaptedContext):
-        #    return adaptedContext.get(self.field.__name__)
-        #else:
-        return getattr(adaptedContext, self.field.__name__)
-        #return adaptedContext.get(self.field.__name__)
+        # Need to create a temporary DraftProxy to get proper value back
+        # from adapted_context since it may handle getattr in a custom way like
+        # dexterity metadata.  Without a DraftProxy we would be getting the
+        # value directly from the content object, which we dont want
+        draftProxy = Z3cFormDraftProxy(self.context._Z3cFormDraftProxy__draft, self.adapted_context)
+        return getattr(draftProxy, self.field.getName())
 
     def query(self, default=interfaces.NO_VALUE):
         """See z3c.form.interfaces.IDataManager"""
@@ -95,8 +97,12 @@ class AttributeField(DataManager):
                             % (self.field.__name__,
                                self.context.__class__.__module__,
                                self.context.__class__.__name__))
-        # get the right adapter or context
-        setattr(self.adapted_context, self.field.__name__, value)
+        # Need to create a temporary DraftProxy to set proper value back
+        # from adapted_context since it may handle getattr in a custom way like
+        # dexterity metadata.  Without a DraftProxy we would be updating the
+        # Content object, which we dont want
+        draftProxy = Z3cFormDraftProxy(self.context._Z3cFormDraftProxy__draft, self.adapted_context)
+        setattr(draftProxy, self.field.getName(), value)
 
     def canAccess(self):
         """See z3c.form.interfaces.IDataManager"""

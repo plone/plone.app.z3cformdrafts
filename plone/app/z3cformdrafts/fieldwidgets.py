@@ -131,8 +131,8 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
                 dm = zope.component.getMultiAdapter(
                     (self.content, field.field), interfaces.IDataManager)
                 value = interfaces.IDataConverter(widget).toFieldValue(widget.value)
-                #if getattr(self.content, field.field.getName()) != value:
-                #    dm.set(value)
+                ##if getattr(self.content, field.field.getName()) != value:
+                ##    dm.set(value)
                 dm.set(value)
             #-------------------------------------------------------------------
 

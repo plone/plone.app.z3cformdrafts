@@ -105,6 +105,8 @@ class DraftingZ3cFormDataContext(object):
         if not IZ3cDraft.providedBy(proxy):
             zope.interface.alsoProvides(proxy, IZ3cDraft)
 
+        IZ3cDraft.providedBy(proxy)
+
         # TODO: MODIFY INTERFACE to include DRAFT field; not just marker
         self.request['DRAFT'] = proxy
         zope.interface.alsoProvides(self.request, IZ3cDraft)
@@ -153,10 +155,56 @@ class ProxySpecification(ObjectSpecificationDescriptor):
         return provided
 
 
-class Z3cFormDraftProxy(DraftProxy):
+class Z3cFormDraftProxy(object):
+    """Ripped from plone.app.drafts.proxy.DraftProxy to provide a custom
+    __providedBy__ ProxySpecification.
+
+    A simple proxy object that is initialised with a draft object and the
+    underlying target. All attribute and annotation writes are performed
+    against the draft; all reads are performed against the draft unless the
+    specified attribute or key is not not found, in which case the they are
+    read from the target object instead.
+
+    Attribute deletions are saved in a set ``draft._proxyDeleted``. Annotation
+    key deletions are saved in a set ``deaft._proxyAnnotationsDeleted``.
+    """
 
     __providedBy__ = ProxySpecification()
+
+    implements(IDraftProxy)
 
     def __init__(self, draft, target):
         self.__dict__['_Z3cFormDraftProxy__draft'] = draft
         self.__dict__['_Z3cFormDraftProxy__target'] = target
+
+    def __getattr__(self, name):
+        deleted = getattr(self.__draft, '_proxyDeleted', set())
+        if name in deleted:
+            raise AttributeError(name)
+
+        if hasattr(self.__draft, name):
+            return getattr(self.__draft, name)
+
+        return getattr(self.__target, name)
+
+    def __setattr__(self, name, value):
+        setattr(self.__draft, name, value)
+
+        deleted = getattr(self.__draft, '_proxyDeleted', set())
+        if name in deleted:
+            deleted.remove(name)
+            self.__draft._p_changed
+
+    def __delattr__(self, name):
+        getattr(self, name) # allow attribute error to be raised
+
+        # record deletion
+        deleted = getattr(self.__draft, '_proxyDeleted', set())
+        if name not in deleted:
+            deleted.add(name)
+            setattr(self.__draft, '_proxyDeleted', deleted)
+
+        # only delete on draft
+        if hasattr(self.__draft, name):
+            delattr(self.__draft, name)
+
