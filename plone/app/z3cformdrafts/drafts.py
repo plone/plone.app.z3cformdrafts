@@ -182,92 +182,33 @@ class Z3cFormDraft(object):
 
             # Create a list of possible good wiget items that can be stored on
             # draft; we will use this list later and remove entries as required
-            for key in self.request.form:
-                if key.startswith('form.widgets'):
-                    self.validWidgetItems.append(key)
+            #for key in self.request.form:
+            #    if key.startswith('form.widgets'):
+            #        self.validWidgetItems.append(key)
 
             # loop through the widgets to get values to populate draft
             for widget in self.form.widgets.values():
                 # Store the orginal sub-widgets names before we update
                 # and any related form items together
                 if getattr(widget, 'widgets', None) is not None:
-                    originalSubWidgets = []
-                    originalSubWidgetsFormItems = {}
-
-                    for subWidget in widget.widgets:
-                        subWidget.update()
-                        originalSubWidgets.append(subWidget)
-
+                    originalSubWidgetsLength = len(widget.widgets)
                     widget.update()
 
-                    # If the len(widget.widgets) < len(originalSubWidgets) then
-                    # something was removed; so figure it out to recreate draft form
-                    # for example (not real results):
-                    #
-                    # Submitted Form:
-                    # A: form.widgets.files.0 = <NamedFile>
-                    # B: form.widgets.files.1 = <NamedFile>
-                    # C: form.widgets.files.2 = <NamedFile>
-                    # D: form.widgets.files.4 = <NamedFile>
-                    # widget.value = <0, 1, 2, 3>
-                    #
-                    # But B and C were marked to be deleted; so when widget.update()
-                    # is applied, widget value will be:
-                    # widget.value = <0, 1>
-                    #
-                    # So we need to figure out what was removed and make sure
-                    # it does not end up on draft (delete anything related to
-                    # B and C) and then move all values from D to
-                    # B (form.widgets.files.1), including any other value items
-                    # related to the widget.
-                    #
-                    # Note:  If we didn't care about other changes to to the
-                    # indivitual sub widgets, like actions, etc all we would need
-                    # to do is remove all widget related data and only add back the
-                    # sub widgets themselves; but this routine will allow someone
-                    # to remove multiple subWidgets and modify existing ones at
-                    # the same time, and store results on draft
+                    # Clear all related widget form items and replace with
+                    # updated values from running widget.update() if subWidgets
+                    # have been removed
+                    if len(widget.widgets) < originalSubWidgetsLength:
+                        for key, value in self.request.form.copy().items():
+                            if key.startswith(widget.name):
+                                self.removeFromRequest(key)
 
-                    # Grab any related seb widget item and store them for
-                    # retreival later; then remove them from self.request.form
-                    if len(widget.widgets) < len(originalSubWidgets):
-                        for subWidget in originalSubWidgets:
-                            miniform = {}
-                            todelete = []
-                            for key, value in self.request.form.items():
-                                if key.startswith(subWidget.name):
-                                    miniform[key] = value
-                                    self.removeFromRequest(key)
-                                    if key in self.validWidgetItems:
-                                        self.validWidgetItems.remove(key)
-                                elif key.startswith(widget.name):
-                                    todelete.append(key)
-                            originalSubWidgetsFormItems[subWidget] = miniform
-                        for key in todelete:
-                            self.removeFromRequest(key)
+                        # Add back updated widget.value and invalidate draft
+                        self.updateRequest(widget.name, widget.value)
+                        self.draftRequestForm.pop(widget.name, None)
 
-                        #REMOVE: DEBUG
-                        widget.extract()
-
+                        # Add back updated subWidget values
                         for subWidget in widget.widgets:
-                            while len(originalSubWidgets) != 0 and subWidget.value != originalSubWidgets[0].value:
-                                originalSubWidgets.pop(0)
-
-                            if len(originalSubWidgets) == 0:
-                                break
-
-                            #if subWidget.name != originalSubWidgets[0].name:
-                            #    #self.updateRequest(subWidget.name, originalSubWidgets[0].value)
-                            #    self.updateRequest(subWidget.name, subWidget.value)
-
-                            # Move any related widget data over
-                            for key, value in originalSubWidgetsFormItems[originalSubWidgets[0]].items():
-                                newKey = key.replace(originalSubWidgets[0].name, subWidget.name)
-                                self.updateRequest(newKey, value)
-                                if newKey not in self.validWidgetItems:
-                                    self.validWidgetItems.append(newKey)
-
-                            originalSubWidgets.pop(0)
+                            self.updateRequest(subWidget.name, subWidget.value)
 
                     # Check sub widgets first, since they can effect values on
                     # parent widget..
@@ -385,20 +326,18 @@ class Z3cFormDraft(object):
         """Saves a copy of the newly created newRequestForm in the draft
            Returns True if successful
         """
-        # Final check to make sure there are no InstanceTypes in new request form
-        # or non related items
-        for key, value in self.request.form.items():
-            if (key not in self.validWidgetItems
-                or type(value) == InstanceType
-                or key in self.formDataNotToSave):
-                if key not in self.formDataNotToSave:
-                    self.formDataNotToSave[key] = value
-                self.removeFromRequest(key)
+        _form = {}
+        for key in self.validWidgetItems:
+            value = self.request.form.get(key, None)
+            if type(value) == InstanceType:
+                self.formDataNotToSave[key] = value
+            else:
+                _form[key] = value
 
         # Re-wrtie the form from draft incase anything was changed since last request
         # unless its identical
         if self.draftRequestForm != self.request.form:
-            setattr(self.draft, '_form', self.request.form.copy())
+            setattr(self.draft, '_form', _form)
 
     def setFormType(self):
         """Store _form_type on draft with hint on what form view created
