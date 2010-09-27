@@ -70,6 +70,15 @@ class Z3cFormDataContext(object):
         """If we are drafting a content item, record form data information to the
         draft, but read existing data from the underlying object.
         """
+        # Set up the draft (sets cookies, markers, etc)
+        portal_type = getattr(self.form, 'portal_type', None)
+
+        # Can't really do a draft if we don't know the portal_type
+        if portal_type is None:
+            return self.content
+
+        beginDrafting(self.content, self.request, portal_type)
+
         draft = getCurrentDraft(self.request, create=self.createDraft)
         if draft is None:
             return self.content

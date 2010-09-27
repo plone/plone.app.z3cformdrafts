@@ -50,10 +50,6 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
         if isKssValidation == True and self.allowKssValidation == False:
             self.draftWritable = False
 
-        # Set up the draft (sets cookies, markers, etc)
-        portal_type = getattr(self.form, 'portal_type', None)
-        beginDrafting(self.content, self.request, portal_type)
-
         proxy = zope.component.getMultiAdapter((self.content,
                                                 self.request,
                                                 self.form), IZ3cFormDataContext)
