@@ -3,6 +3,7 @@
 
 import zope.interface
 
+from plone.app.drafts.interfaces import IDraft, IDrafting
 from plone.z3cformbuttonoverrides.interfaces import IButtonAndHandlerSubscriber
 
 
@@ -81,6 +82,17 @@ class IDraftSubmitBehavior(IButtonAndHandlerSubscriber):
 
 
 class IDraftCancelBehavior(IButtonAndHandlerSubscriber):
-    """Marker interfac to enable custom cancel button and handler override
+    """Marker interface to enable custom cancel button and handler override
     This is automatically set when creating a draft
+    """
+
+
+class IZ3cDraft(IDraft):
+    """Marker interface to indicate a z3c.form draft is present
+    """
+
+
+class IZ3cDrafting(IDrafting):
+    """Marker interface to indicate a z3c.form draft is currently being
+    created; but is not yet complete.
     """

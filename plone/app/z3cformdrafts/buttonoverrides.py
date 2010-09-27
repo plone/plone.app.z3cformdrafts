@@ -5,10 +5,12 @@ import zope.interface
 import zope.component
 
 from z3c.form import button
+from z3c.form.form import AddForm, EditForm
 
 from plone.dexterity.i18n import MessageFactory as _
-from plone.dexterity.browser.edit import DefaultEditForm
-from plone.dexterity.browser.add import DefaultAddForm
+
+#from plone.dexterity.browser.edit import DefaultEditForm
+#from plone.dexterity.browser.add import DefaultAddForm
 
 from plone.app.drafts.dexterity import discardDraftsOnCancel
 
@@ -18,7 +20,7 @@ from plone.app.z3cformdrafts.interfaces import IDraftSubmitBehavior
 from plone.app.z3cformdrafts.interfaces import IDraftCancelBehavior
 
 
-class AddSubmitDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, DefaultAddForm):
+class AddSubmitDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, AddForm):
     """Overrides the current 'Save' button in DefaultAddForm to allow drafts
     to function properly only if the content type supports plone.app.drafts.IDraftable
 
@@ -54,7 +56,7 @@ class AddSubmitDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, Defau
         self.form.actions["save"].addClass("context")
 
 
-class AddCancelDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, DefaultAddForm):
+class AddCancelDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, AddForm):
     """Overrides the current 'Cancel' button in DefaultAddForm to allow drafts
     to function properly only if the content type supports plone.app.drafts.IDraftable
 
@@ -89,7 +91,7 @@ class AddCancelDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, Defau
         self.form.actions["cancel"].addClass("standalone")
 
 
-class EditSubmitDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, DefaultEditForm):
+class EditSubmitDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, EditForm):
     """Overrides the current 'Save' button in DefaultEditForm to allow drafts
     to function properly only if the content type supports plone.app.drafts.IDraftable
 
@@ -124,7 +126,7 @@ class EditSubmitDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, Defa
         self.form.actions["save"].addClass("context")
 
 
-class EditCancelDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, DefaultEditForm):
+class EditCancelDraftButtonAndHandlerSubscriber(ButtonAndHandlerSubscriber, EditForm):
     """Overrides the current 'Save' button in DefaultEditForm to allow drafts
     to function properly only if the content type supports plone.app.drafts.IDraftable
 

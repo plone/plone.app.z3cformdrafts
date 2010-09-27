@@ -17,14 +17,30 @@ from plone.namedfile.interfaces import INamed
 from plone.app.textfield.interfaces import IRichText
 
 from plone.dexterity.interfaces import IDexterityFTI
-from plone.dexterity.interfaces import IAddBegunEvent, IEditBegunEvent
+#from plone.dexterity.interfaces import IAddBegunEvent, IEditBegunEvent
 
-from plone.app.drafts.interfaces import IDraft, IDrafting
+from plone.app.z3cformdrafts.interfaces import IZ3cDraft, IZ3cDrafting
 from plone.app.drafts.dexterity import beginDrafting
 from plone.app.drafts.utils import getCurrentDraft
 
 from plone.app.z3cformdrafts.interfaces import IZ3cFormDraft
 
+# Event Handlers
+def begunUpdate(form, event):
+    """Event subscriber listening for plone.z3cform.layout.FormWrapper.update
+    notify that it has started.
+    A draft will not be created at this point, but if one exists it will be used.
+    It is up to a widget or other behavior, etc to actually create a draft
+    (see plone.app.drafts.behaviors.drafts behavior
+    or plone.formwidget.multifile.widget for examples)
+    """
+    portal_type = getattr(form, 'portal_type', form.context.portal_type)
+
+    # Get draft object
+    z3cFormDraft = zope.component.queryMultiAdapter((form, form.request), IZ3cFormDraft)
+
+    if z3cFormDraft is not None:
+        z3cFormDraft.update(portal_type=portal_type, create=False, allowKssValidation=False)
 
 # Request.form draft creation
 class Z3cFormDraft(object):
@@ -45,7 +61,11 @@ class Z3cFormDraft(object):
         self.draftRequestForm = {}
 
         self.draft = None
-        self.isKssValidation = False
+
+        # Check to see if we were called by kss validation
+        self.isKssValidation = ('kss_z3cform_inline_validation' in self.request.getURL().split('/')
+                           and 'validate_input' in self.request.getURL().split('/'))
+
 
     def setupDraftRequest(self):
         """Sets up the request to make it work with drafting
@@ -67,11 +87,11 @@ class Z3cFormDraft(object):
         self.request.form[key] = value
         self.request.other[key] = value
 
-    def getDraft(self, content, request, portal_type):
+    def getDraft(self, content, request, portal_type, create=False):
         """Tries to get or set the draft for form content object
         """
         beginDrafting(content, request, portal_type)
-        draft = getCurrentDraft(request, create=True)
+        draft = getCurrentDraft(request, create=create)
         return draft
 
     def mergeDraftWithRequest(self):
@@ -98,9 +118,9 @@ class Z3cFormDraft(object):
                 # If widgets contains the attribute 'widgets', there is another
                 # list of widgets to deal with; more than likely from an IList
                 if getattr(widget, 'widgets', None) is not None:
-                    for widgetWidgets in widget.widgets:
-                        value = IWidgetInputConverter(widget).toWidgetInputValue(widget.value)
-                        self.updateRequest(widgetWidgets.name, value)
+                    for subWidget in widget.widgets:
+                        value = IWidgetInputConverter(subWidget).toWidgetInputValue(subWidget.value)
+                        self.updateRequest(subWidget.name, value)
         else:
             # Don't save anything on draft that is button action related or
             # not directly releated to a widget since data may be InstanceType
@@ -131,24 +151,24 @@ class Z3cFormDraft(object):
                 # Check sub widgets first, since they can effect values on
                 # parent widget..
                 if getattr(widget, 'widgets', None) is not None:
-                    for widgetWidgets in widget.widgets:
-                        self.setRequestFormValues(widgetWidgets)
+                    for subWidget in widget.widgets:
+                        self.setRequestFormItems(subWidget)
 
                 # set newRequestForm value from widget value
-                self.setRequestFormValues(widget)
+                self.setRequestFormItems(widget)
 
                 # Update widget with newRequestForm, since widget.value may change
                 # based on sub-wigets being set up from draft
                 if getattr(widget, 'widgets', None) is not None:
                     widget.update()
-                    self.setRequestFormValues(widget, temporaryRequestForm=True)
+                    self.setRequestFormItems(widget, temporaryRequestForm=True)
 
             # Loop though draft and add anything missing to newRequestForm
             for key, value in self.draftRequestForm.items():
                 if key not in self.request.form:
                     self.updateRequest(key, value)
 
-    def setRequestFormValues(self, widget, temporaryRequestForm=False):
+    def setRequestFormItems(self, widget, temporaryRequestForm=False):
         """Sets request.form value either from the widget.value or
         directly from the draft
         """
@@ -224,33 +244,40 @@ class Z3cFormDraft(object):
         if self.draftRequestForm != self.request.form:
             setattr(self.draft, '_form', self.request.form.copy())
 
-    def markRequest(self):
-        """Mark request with hints on what form view created
+    def setFormType(self):
+        """Store _form_type on draft with hint on what form view created
         the draft so we can adapt it and such
         """
-        # Mark request so we can tell if add or edit notifier created it
-        # (only ever set it once)
-        notifier = getattr(self.draft, '_notifier', None)
-        if not notifier:
+        formType = getattr(self.draft, '_form_type', None)
+        if not formType:
             if interfaces.IAddForm.providedBy(self.form):
-                setattr(self.draft, '_notifier', 'add')
+                setattr(self.draft, '_form_type', 'add')
             elif interfaces.IEditForm.providedBy(self.form):
-                setattr(self.draft, '_notifier', 'edit')
-            notifier = getattr(self.draft, '_notifier', None)
-
-        # Mark request interface based on stored value
-        if notifier == 'add':
-            zope.interface.alsoProvides(self.request, IAddBegunEvent)
-        elif notifier == 'edit':
-            zope.interface.alsoProvides(self.request, IEditBegunEvent)
-
+                setattr(self.draft, '_form_type', 'edit')
         return
 
-    def update(self, portal_type=None, autoEnableDraftBehavior=False):
+    def update(self, portal_type=None, create=False, allowKssValidation=False, force=False):
         """updates request.form with data from draft
+        - portal_type:  portal_type of the context; provide if possible
+        - create: will create a draft if none exists if True, otherwise will only
+        use an existing draft if it exists or will return
+        - allowKssValidation:  Will return if kss validation is detected and this
+        value is False.  If it is true, it will update draft every time a user
+        presses tab in the browser; could be load intensive but would allow auto
+        saving of drafts
+        - force:  Normally a draft is not recreated if force is False.  Widgets
+        may set force to True to force a new draft to be created incase they
+        updated something in the request.form since it was created.
         """
         # Only allow 1 notify.  form.update() will trigger another
-        if IDrafting.providedBy(self.request):
+        if IZ3cDrafting.providedBy(self.request):
+            return
+
+        # Already created draft; return
+        # TODO:  move to calling function begunUpdate both here and in dexterity
+        # (will allow quicker return if a draft already exists, and will eliminate
+        #  need for froce=True)
+        if IZ3cDraft.providedBy(self.request) and force == False:
             return
 
         if portal_type is None:
@@ -258,40 +285,42 @@ class Z3cFormDraft(object):
             if portal_type is None:
                 return
 
-        fti = zope.component.queryUtility(IDexterityFTI, name=portal_type)
-        if not 'plone.app.drafts.interfaces.IDraftable' in fti.behaviors:
-            if autoEnableDraftBehavior == False:
-                return
-            # Auto-enable behavior for content type if autoEnableDraftBehavior
-            # is True
-            # provided by request
-            else:
-                behaviors = list(fti.behaviors)
-                behaviors.append('plone.app.drafts.interfaces.IDraftable')
-                fti.behaviors = behaviors
-
-        # Check to see if we were called by kss validation
-        self.isKssValidation = ('kss_z3cform_inline_validation' in self.request.getURL().split('/')
-                           and 'validate_input' in self.request.getURL().split('/'))
-
-        # Don't allow autosave if IDraftAutoSaveBehavior is not enabled
-        if self.isKssValidation == True and not 'plone.app.z3cformdrafts.interfaces.IDraftAutoSaveBehavior' in fti.behaviors:
+##        fti = zope.component.queryUtility(IDexterityFTI, name=portal_type)
+##        if not 'plone.app.drafts.interfaces.IDraftable' in fti.behaviors:
+##            if autoEnableDraftBehavior == False:
+##                return
+##            # Auto-enable behavior for content type if autoEnableDraftBehavior
+##            # is True
+##            # provided by request
+##            else:
+##                behaviors = list(fti.behaviors)
+##                behaviors.append('plone.app.drafts.interfaces.IDraftable')
+##                fti.behaviors = behaviors
+##
+##        # Check to see if we were called by kss validation
+##        self.isKssValidation = ('kss_z3cform_inline_validation' in self.request.getURL().split('/')
+##                           and 'validate_input' in self.request.getURL().split('/'))
+##
+##        # Don't allow autosave if IDraftAutoSaveBehavior is not enabled
+##        if self.isKssValidation == True and not 'plone.app.z3cformdrafts.interfaces.IDraftAutoSaveBehavior' in fti.behaviors:
+##            return
+        if self.isKssValidation == True and allowKssValidation == False:
             return
 
-        # Mark request as IDraft so other modules will know a draft is available
-        zope.interface.alsoProvides(self.request, IDraft)
+        # Get draft data
+        # Request will also be marked with IZ3cDrafting at this point
+        self.draft = self.getDraft(self.form.getContent(), self.request, portal_type, create=create)
+        if self.draft is None:
+            #self.restoreRequest()
+            #zope.interface.noLongerProvides(self.form.request, IZ3cDraft, IZ3cDrafting)
+            return
 
         # Add draft to request, and backs up request.form and request.other
         # incase we need to revert back to 'almost' original state
         self.setupDraftRequest()
 
-        # Get draft data
-        # Request will also be marked with IDrafting at this point
-        self.draft = self.getDraft(self.form.getContent(), self.request, portal_type)
-        if self.draft is None:
-            self.restoreRequest()
-            zope.interface.noLongerProvides(self.form.request, IDraft, IDrafting)
-            return
+        # Mark request as IDraft so other modules will know a draft is available
+        zope.interface.alsoProvides(self.request, IZ3cDraft, IZ3cDrafting)
 
         # Store draft in request and draft._form in draftRequestForm
         self.request['DRAFT'] = self.draft
@@ -307,8 +336,8 @@ class Z3cFormDraft(object):
         # (button actions, items not directly related to widgets, InstanceTypes)
         self.request.form.update(self.formDataNotToSave)
 
-        # Mark request with addition markers
-        self.markRequest()
+        # Save the form type (add, edit) on draft
+        self.setFormType()
 
         # We are done drafting; so get rid of marker
-        zope.interface.noLongerProvides(self.form.request, IDrafting)
+        zope.interface.noLongerProvides(self.form.request, IZ3cDrafting)
