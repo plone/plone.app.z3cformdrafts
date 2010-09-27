@@ -97,6 +97,19 @@ class IZ3cDrafting(IDrafting):
     created; but is not yet complete.
     """
 
+
 class IDraftableField(zope.interface.Interface):
     """Marker interface to indicate a field is draftable.
+    """
+
+
+class IZ3cFormDataContext(zope.interface.Interface):
+    """Indirection to help determine where draft forms store their data.
+
+    This is a multi-adapter on ``(context, request, form)``. The context and
+    request are the same as ``form.context`` and ``form.request``, but these
+    discriminators allow the data context to be customised depending on
+    the context or request.
+
+    The default implementation simply returns ``form.context``.
     """

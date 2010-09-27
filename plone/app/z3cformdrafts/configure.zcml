@@ -31,6 +31,14 @@
       factory=".datamanager.DictionaryField"
     /-->
 
+    <!-- Basic IForm draft context draft/proxy adapter -->
+    <adapter
+        for="zope.interface.Interface
+             plone.app.drafts.interfaces.IDrafting
+             z3c.form.interfaces.IForm"
+        factory=".drafting.DraftingZ3cFormDataContext"
+        />
+
     <!-- zc3form will adapt these.  this is where we override
          the buttons and handlers -->
     <adapter
