@@ -82,9 +82,6 @@ class DraftingZ3cFormDataContext(object):
         if draft is None:
             return self.content
 
-        # TODO: Adapt this
-        proxy = Z3cFormDraftProxy(draft, self.content)
-
         # Make sure cache is created fresh incase context changed from last visit
         # (empty draft)
         if (not IZ3cDraft.providedBy(draft)
@@ -93,17 +90,19 @@ class DraftingZ3cFormDataContext(object):
             setDefaults = False
             for field in self.form.fields.values():
                 # Mark draft interface provided by field so it can be adapted
-                if not field.field.interface.providedBy(proxy):
+                if not field.field.interface.providedBy(draft):
                     # Mark draft (add form)
-                    zope.interface.alsoProvides(proxy, field.field.interface)
+                    zope.interface.alsoProvides(draft, field.field.interface)
                     setDefaults = True
 
                 # Provide default value on draft
                 if setDefaults == True:
                     setattr(draft, field.field.getName(), field.field.default)
 
-        if not IZ3cDraft.providedBy(proxy):
-            zope.interface.alsoProvides(proxy, IZ3cDraft)
+        if not IZ3cDraft.providedBy(draft):
+            zope.interface.alsoProvides(draft, IZ3cDraft)
+
+        proxy = Z3cFormDraftProxy(draft, self.content)
 
         IZ3cDraft.providedBy(proxy)
 
@@ -117,12 +116,6 @@ class DraftingZ3cFormDataContext(object):
 class ProxySpecification(ObjectSpecificationDescriptor):
     """A __providedBy__ decorator that returns the interfaces provided by
     the draft and the proxy
-
-    TODO:  Implement a cache, but remember that it needs to work with ++add++
-           form, which may not contain a dexterity/zc3form type as its context.
-
-           I could just set _v__providedBy__ here if I could make sure it gets
-           invalidated if an interface was added since last time
     """
 
     def __get__(self, inst, cls=None):
@@ -134,9 +127,9 @@ class ProxySpecification(ObjectSpecificationDescriptor):
         # Find the cached value and return it if possible
         # Only want it is its stored on draft otherwise it will not contain
         # any draft values
-        #cached = getattr(inst._DraftProxy__draft, '_v__providedBy__', None)
-        #if cached is not None:
-        #    return cached
+        cached = getattr(inst._Z3cFormDraftProxy__draft, '_v__providedBy__', None)
+        if cached is not None:
+            return cached
 
         # Get the interfaces implied by the class as a starting point.
         provided = implementedBy(cls)
@@ -151,7 +144,7 @@ class ProxySpecification(ObjectSpecificationDescriptor):
 
         provided += providedBy(target)
 
-        #inst._v__providedBy__ = provided
+        inst._v__providedBy__ = provided
         return provided
 
 
