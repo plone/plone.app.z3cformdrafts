@@ -18,5 +18,3 @@ plone/app/z3cformdrafts/drafting.py
 plone/app/z3cformdrafts/drafts.py
 plone/app/z3cformdrafts/fieldwidgets.py
 plone/app/z3cformdrafts/interfaces.py
-plone/app/z3cformdrafts/tempinterfaces.py
-plone/app/z3cformdrafts/temporaryfile.py

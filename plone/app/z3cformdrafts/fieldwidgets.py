@@ -32,6 +32,7 @@ from plone.app.drafts.utils import getCurrentDraft
 from plone.app.z3cformdrafts.interfaces import IZ3cFormDraft, IDraftableField
 
 from plone.app.z3cformdrafts.interfaces import IZ3cFormDataContext
+from plone.app.drafts.interfaces import IDraftable
 
 class FieldWidgets(z3c.form.field.FieldWidgets):
     """Widget manager for IFieldWidget."""
@@ -41,6 +42,7 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
     ignoreContext = False
     createDraft = False
     draftWritable = True
+    draftable = False
 
     def __init__(self, form, request, content):
         super(FieldWidgets, self).__init__(form, request, content)
@@ -55,6 +57,8 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
                                                 self.form), IZ3cFormDataContext)
         proxy.createDraft = self.createDraft
         self.content = proxy.adapt()
+        if IZ3cDraft.providedBy(self.content):
+            self.draftable = True
 
     def update(self):
         """See interfaces.IWidgets"""
@@ -75,7 +79,7 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
 
             # Step 0. Determine whether the context should be ignored.
             #-------------------------------------------------------------------
-            if IZ3cDraft.providedBy(self.content):
+            if self.draftable:
                 ignoreContext = False
             else:
                 ignoreContext = self.ignoreContext
@@ -111,6 +115,17 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
             else:
                 widget = zope.component.getMultiAdapter(
                     (field.field, self.request), interfaces.IFieldWidget)
+            # Step 2.5:  If widget is draftable and no widget exists, create draft
+            if self.draftable == False and IDraftable.providedBy(widget):
+                proxy = zope.component.getMultiAdapter((self.content,
+                                                        self.request,
+                                                        self.form), IZ3cFormDataContext)
+                proxy.createDraft = True
+                self.content = proxy.adapt()
+                if IZ3cDraft.providedBy(self.content):
+                    self.draftable = True
+                    ignoreContext = False
+
             # Step 3: Set the prefix for the widget
             widget.name = prefix + shortName
             widget.id = (prefix + shortName).replace('.', '-')
@@ -133,7 +148,7 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
             #-------------------------------------------------------------------
             # Save converted widget value on draft if it different from what is
             # already stored on draft
-            if IZ3cDraft.providedBy(self.content) and self.draftWritable == True:
+            if self.draftable and self.draftWritable == True:
                 dm = zope.component.getMultiAdapter(
                     (self.content, field.field), interfaces.IDataManager)
                 value = interfaces.IDataConverter(widget).toFieldValue(widget.value)
