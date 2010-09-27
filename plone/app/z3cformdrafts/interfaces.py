@@ -96,3 +96,7 @@ class IZ3cDrafting(IDrafting):
     """Marker interface to indicate a z3c.form draft is currently being
     created; but is not yet complete.
     """
+
+class IDraftableField(zope.interface.Interface):
+    """Marker interface to indicate a field is draftable.
+    """
