@@ -128,7 +128,7 @@ class Z3cFormDataContext(object):
             zope.interface.alsoProvides(draft, IZ3cDraft)
 
         proxy = Z3cFormDraftProxy(draft, self.content)
-        IZ3cDraft.providedBy(proxy)
+        #IZ3cDraft.providedBy(proxy)
 
         # TODO: MODIFY INTERFACE to include DRAFT field; not just marker
         self.request['DRAFT'] = proxy
