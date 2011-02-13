@@ -65,6 +65,8 @@ class Z3cFormDataContext(object):
         self.content = content
         self.request = request
         self.form = form
+        from Acquisition import aq_inner
+        self.context = aq_inner(self.form.context)
 
     def adapt(self):
         """If we are drafting a content item, record form data information to the
@@ -77,7 +79,8 @@ class Z3cFormDataContext(object):
         #if portal_type is None:
         #    return self.content
 
-        beginDrafting(self.content, self.form)
+        #beginDrafting(self.content, self.form)
+        beginDrafting(self.context, self.form)
         draft = getCurrentDraft(self.request, create=self.createDraft)
 
         #from plone.app.z3cformdrafts.tempinterfaces import ITemporaryFileHandler
@@ -90,16 +93,15 @@ class Z3cFormDataContext(object):
         #    draft = handler.create()
 
         if draft is None:
-            return self.content
+            return self.content  # return contnet, not context
 
         # Make sure cache is created fresh incase context changed from last visit
         # (empty draft)
         # Draft has to be 'marked' with additional interfaces before the proxy
         # is created since the proxy caches __providedBy__ and therefore anything
         # added after proxy is created will not exist in cache
-        if (not IZ3cDraft.providedBy(draft)
-            and self.content.portal_type != portal_type
-            ):
+            #and self.content.portal_type != portal_type
+        if (IZ3cDraft.providedBy(draft) == False and self.context.portal_type != portal_type):
             setDefaults = False
             for field in self.form.fields.values():
                 # Mark draft interface provided by field so it can be adapted
@@ -127,7 +129,11 @@ class Z3cFormDataContext(object):
         if not IZ3cDraft.providedBy(draft):
             zope.interface.alsoProvides(draft, IZ3cDraft)
 
-        proxy = Z3cFormDraftProxy(draft, self.content)
+        if not IDrafting.providedBy(draft):
+            zope.interface.alsoProvides(draft, IDrafting)
+
+        #proxy = Z3cFormDraftProxy(draft, self.content)
+        proxy = Z3cFormDraftProxy(draft, self.context)
         #IZ3cDraft.providedBy(proxy)
 
         # TODO: MODIFY INTERFACE to include DRAFT field; not just marker
@@ -202,7 +208,11 @@ class Z3cFormDraftProxy(object):
         if hasattr(self.__draft, name):
             return getattr(self.__draft, name)
 
-        return getattr(self.__target, name)
+        #return getattr(self.__target, name)
+        try:
+            return getattr(self.__target, name)
+        except AttributeError:
+            pass
 
     def __setattr__(self, name, value):
         setattr(self.__draft, name, value)

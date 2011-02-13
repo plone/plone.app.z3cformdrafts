@@ -80,6 +80,14 @@
 
     <!-- Z3CFormDrafts field widget adapters -->
     <adapter
+        for="z3c.form.interfaces.IInputForm
+            z3c.form.interfaces.IFormLayer
+            zope.interface.Interface"
+        factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
+        provides="z3c.form.interfaces.IWidgets"
+    />
+    <!--Won't need these if we use IInputForm-->
+    <adapter
         for="z3c.form.interfaces.IAddForm
             z3c.form.interfaces.IFormLayer
             zope.interface.Interface"
