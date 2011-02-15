@@ -6,38 +6,19 @@ import zope.interface
 import zope.location
 import zope.schema.interfaces
 
-from z3c.form import interfaces, util, error
-from z3c.form.error import MultipleErrors
+from z3c.form import interfaces, util
 from z3c.form.widget import AfterWidgetUpdateEvent
-
 import z3c.form.field
 
-import re
-
-from types import InstanceType
-
-import zope.interface
-import zope.component
-from zope.annotation.interfaces import IAnnotations
-
-from z3c.form import interfaces
-from z3c.form.interfaces import NO_VALUE
-
-from plone.z3cform.interfaces import IWidgetInputConverter
-
-from plone.app.z3cformdrafts.interfaces import IZ3cDraft, IZ3cDrafting
-from plone.app.drafts.dexterity import beginDrafting
-from plone.app.drafts.utils import getCurrentDraft
-
-from plone.app.z3cformdrafts.interfaces import IZ3cFormDraft, IDraftableField
+from plone.app.z3cformdrafts.interfaces import IZ3cDraft
 
 from plone.app.z3cformdrafts.interfaces import IZ3cFormDataContext
 from plone.app.drafts.interfaces import IDraftable
 
+
 class FieldWidgets(z3c.form.field.FieldWidgets):
     """Widget manager for IFieldWidget."""
 
-    #portal_type = None
     allowKssValidation = False
     ignoreContext = False
     createDraft = False
@@ -69,14 +50,6 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
         # Walk through each field, making a widget out of it.
         uniqueOrderedKeys = []
         for field in self.form.fields.values():
-
-            #-------------------------------------------------------------------
-            # Indicates field is draftable
-##            if (proxy is not None and
-##                not IDraftableField.providedBy(field)):
-##                zope.interface.alsoProvides(field.field, IDraftableField)
-            #-------------------------------------------------------------------
-
             # Step 0. Determine whether the context should be ignored.
             #-------------------------------------------------------------------
             if self.draftable:
@@ -96,8 +69,6 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
             elif not ignoreContext:
                 # If we do not have enough permissions to write to the
                 # attribute, then switch to display mode.
-                #dm = zope.component.getMultiAdapter(
-                #    (self.content, field.field), interfaces.IDataManager)
                 dm = zope.component.getMultiAdapter(
                     (self.content, field.field), interfaces.IDataManager)
                 if not dm.canWrite():

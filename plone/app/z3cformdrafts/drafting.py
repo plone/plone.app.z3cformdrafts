@@ -6,42 +6,14 @@ import zope.interface
 import zope.location
 import zope.schema.interfaces
 
-from z3c.form import interfaces, util, error
-from z3c.form.error import MultipleErrors
-from z3c.form.widget import AfterWidgetUpdateEvent
-
-import z3c.form.field
-
-import re
-
-from types import InstanceType
-
-import zope.interface
-import zope.component
-from zope.annotation.interfaces import IAnnotations
-
 from z3c.form import interfaces
-from z3c.form.interfaces import NO_VALUE
 
-from plone.z3cform.interfaces import IWidgetInputConverter
-
-from plone.app.z3cformdrafts.interfaces import IZ3cDraft, IZ3cDrafting
 from plone.app.drafts.dexterity import beginDrafting
 from plone.app.drafts.utils import getCurrentDraft
-
-from plone.app.z3cformdrafts.interfaces import IZ3cFormDraft, IDraftableField
-
-import plone.app.drafts.proxy
 from plone.app.drafts.interfaces import IDraftProxy
-from plone.dexterity.content import FTIAwareSpecification
 
-from zope.interface import implementer
-from zope.component import adapter
-
-from plone.app.z3cformdrafts.interfaces import IZ3cFormDataContext
+from plone.app.z3cformdrafts.interfaces import IZ3cFormDataContext, IZ3cDraft
 from plone.app.drafts.interfaces import IDrafting
-
-from plone.app.drafts.proxy import DraftProxy
 
 from zope.interface import implements
 from zope.interface.declarations import getObjectSpecification
@@ -58,9 +30,6 @@ class Z3cFormDataContext(object):
 
     createDraft = False
 
-    # XXX: REMOVE; change to default z3cform provider
-    #cacheProvider = FTIAwareSpecification
-
     def __init__(self, content, request, form):
         self.content = content
         self.request = request
@@ -74,23 +43,13 @@ class Z3cFormDataContext(object):
         """
         # Set up the draft (sets cookies, markers, etc)
         portal_type = getattr(self.form, 'portal_type', None)
+        draft = getCurrentDraft(self.request, create=False)
+        if not draft and not self.createDraft:
+            return self.content
 
-        # Can't really do a draft if we don't know the portal_type
-        #if portal_type is None:
-        #    return self.content
-
-        #beginDrafting(self.content, self.form)
-        beginDrafting(self.context, self.form)
-        draft = getCurrentDraft(self.request, create=self.createDraft)
-
-        #from plone.app.z3cformdrafts.tempinterfaces import ITemporaryFileHandler
-        #handler = getMultiAdapter((self.content, self.request),
-        #                          ITemporaryFileHandler)
-        #from plone.app.z3cformdrafts.temporaryfile import TemporaryFileHandler
-        #handler = TemporaryFileHandler(self.content, self.request)
-        #draft = handler.get('draft')
-        #if draft is None and self.createDraft == True:
-        #    draft = handler.create()
+        if not draft:
+            beginDrafting(self.context, self.form)
+            draft = getCurrentDraft(self.request, create=self.createDraft)
 
         if draft is None:
             return self.content  # return contnet, not context
@@ -132,9 +91,7 @@ class Z3cFormDataContext(object):
         if not IDrafting.providedBy(draft):
             zope.interface.alsoProvides(draft, IDrafting)
 
-        #proxy = Z3cFormDraftProxy(draft, self.content)
         proxy = Z3cFormDraftProxy(draft, self.context)
-        #IZ3cDraft.providedBy(proxy)
 
         # TODO: MODIFY INTERFACE to include DRAFT field; not just marker
         self.request['DRAFT'] = proxy
@@ -154,13 +111,6 @@ class ProxySpecification(ObjectSpecificationDescriptor):
         if inst is None:
             return getObjectSpecification(cls)
 
-        # Find the cached value and return it if possible
-        # Only want it is its stored on draft otherwise it will not contain
-        # any draft values
-        #cached = getattr(inst._Z3cFormDraftProxy__draft, '_v__providedBy__', None)
-        #if cached is not None:
-        #    return cached
-
         # Get the interfaces implied by the class as a starting point.
         provided = implementedBy(cls)
 
@@ -174,7 +124,6 @@ class ProxySpecification(ObjectSpecificationDescriptor):
 
         provided += providedBy(target)
 
-        #inst._v__providedBy__ = provided
         return provided
 
 
@@ -223,7 +172,7 @@ class Z3cFormDraftProxy(object):
             self.__draft._p_changed
 
     def __delattr__(self, name):
-        getattr(self, name) # allow attribute error to be raised
+        getattr(self, name)  # allow attribute error to be raised
 
         # record deletion
         deleted = getattr(self.__draft, '_proxyDeleted', set())
@@ -234,4 +183,3 @@ class Z3cFormDraftProxy(object):
         # only delete on draft
         if hasattr(self.__draft, name):
             delattr(self.__draft, name)
-

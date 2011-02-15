@@ -9,9 +9,6 @@ from z3c.form.form import AddForm, EditForm
 
 from plone.dexterity.i18n import MessageFactory as _
 
-#from plone.dexterity.browser.edit import DefaultEditForm
-#from plone.dexterity.browser.add import DefaultAddForm
-
 from plone.app.drafts.dexterity import discardDraftsOnCancel
 
 from plone.z3cformbuttonoverrides.buttonoverrides import ButtonAndHandlerSubscriber

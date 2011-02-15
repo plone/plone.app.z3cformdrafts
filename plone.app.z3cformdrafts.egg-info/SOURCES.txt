@@ -15,6 +15,6 @@ plone/app/z3cformdrafts/__init__.py
 plone/app/z3cformdrafts/buttonoverrides.py
 plone/app/z3cformdrafts/datamanager.py
 plone/app/z3cformdrafts/drafting.py
-plone/app/z3cformdrafts/drafts.py
 plone/app/z3cformdrafts/fieldwidgets.py
 plone/app/z3cformdrafts/interfaces.py
+plone/app/z3cformdrafts/patch.py

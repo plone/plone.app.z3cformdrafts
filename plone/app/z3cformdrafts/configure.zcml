@@ -2,34 +2,35 @@
     xmlns="http://namespaces.zope.org/zope"
     xmlns:zcml="http://namespaces.zope.org/zcml"
     xmlns:plone="http://namespaces.plone.org/plone"
+    xmlns:monkey="http://namespaces.plone.org/monkey"
     i18n_domain="plone.app.z3cformdrafts">
+
+    <include package="z3c.form" file="meta.zcml" />
+    <include package="z3c.form" />
+
+    <!-- Temporary Monkey patch to allow drafts to work with list forms
+    TODO:  submit patch to zope for inclusion in future z3c.form update -->
+    <include package="collective.monkeypatcher" file="meta.zcml" />
+    <monkey:patch
+        description="Patches bug in MultiWidget to set ignoreContext/ignoreRequest properly"
+        class="z3c.form.widget.MultiWidget"
+        original="getWidget"
+        replacement=".patch.MultiWidget_getWidget"
+        />
+    <monkey:patch
+        description="Patches MultiWidget extract to function with drafts"
+        class="z3c.form.widget.MultiWidget"
+        original="extract"
+        replacement=".patch.MultiWidget_extract"
+        />
 
     <!-- include plone.app.drafts -->
     <include package="plone.app.drafts"/>
-
-    <!-- IDraftBehavior Adapter -->
-    <adapter factory=".drafts.Z3cFormDraft" />
-
-    <!-- Add/Edit enabled form update() events -->
-    <!--subscriber
-    for="z3c.form.interfaces.IAddForm
-         plone.z3cform.interfaces.IBegunUpdateEvent"
-    handler=".drafts.begunUpdate"
-    />
-
-    <subscriber
-    for="z3c.form.interfaces.IEditForm
-         plone.z3cform.interfaces.IBegunUpdateEvent"
-    handler=".drafts.begunUpdate"
-    /-->
 
      <!-- Data Managers -->
     <adapter
         factory=".datamanager.AttributeField"
     />
-    <!--adapter
-      factory=".datamanager.DictionaryField"
-    /-->
 
     <!-- Basic IForm draft context draft/proxy adapter -->
     <adapter
