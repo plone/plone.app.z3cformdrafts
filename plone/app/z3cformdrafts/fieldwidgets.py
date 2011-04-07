@@ -38,6 +38,7 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
                                                 self.form), IZ3cFormDataContext)
         proxy.createDraft = self.createDraft
         self.content = proxy.adapt()
+
         if IZ3cDraft.providedBy(self.content):
             self.draftable = True
 
@@ -122,9 +123,12 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
             if self.draftable and self.draftWritable == True:
                 dm = zope.component.getMultiAdapter(
                     (self.content, field.field), interfaces.IDataManager)
-                value = interfaces.IDataConverter(widget).toFieldValue(widget.value)
-                if getattr(self.content, field.field.getName()) != value:
-                    dm.set(value)
+                try:
+                    value = interfaces.IDataConverter(widget).toFieldValue(widget.value)
+                    if getattr(self.content, field.field.getName()) != value:
+                        dm.set(value)
+                except ValueError:
+                    pass
             #-------------------------------------------------------------------
 
             zope.event.notify(AfterWidgetUpdateEvent(widget))

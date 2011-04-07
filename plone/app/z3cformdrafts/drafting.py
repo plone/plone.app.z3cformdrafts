@@ -157,11 +157,7 @@ class Z3cFormDraftProxy(object):
         if hasattr(self.__draft, name):
             return getattr(self.__draft, name)
 
-        #return getattr(self.__target, name)
-        try:
-            return getattr(self.__target, name)
-        except AttributeError:
-            pass
+        return getattr(self.__target, name)
 
     def __setattr__(self, name, value):
         setattr(self.__draft, name, value)
