@@ -33,11 +33,16 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
         if isKssValidation == True and self.allowKssValidation == False:
             self.draftWritable = False
 
-        proxy = zope.component.getMultiAdapter((self.content,
-                                                self.request,
-                                                self.form), IZ3cFormDataContext)
-        proxy.createDraft = self.createDraft
-        self.content = proxy.adapt()
+        # A draft was already created, so lets use it to save time
+        # (this may happen when group update() is called)
+        if IZ3cDraft.providedBy(request):
+            self.content = request.DRAFT
+        else:
+            proxy = zope.component.getMultiAdapter((self.content,
+                                                    self.request,
+                                                    self.form), IZ3cFormDataContext)
+            proxy.createDraft = self.createDraft
+            self.content = proxy.adapt()
 
         if IZ3cDraft.providedBy(self.content):
             self.draftable = True

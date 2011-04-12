@@ -62,7 +62,13 @@ class Z3cFormDataContext(object):
             #and self.content.portal_type != portal_type
         if (IZ3cDraft.providedBy(draft) == False and self.context.portal_type != portal_type):
             setDefaults = False
-            for field in self.form.fields.values():
+            _fields = []
+            for field in self.form.fields.items():
+                _fields.append(field)
+            for group in self.form.groups:
+                for field in group.fields.items():
+                    _fields.append(field)
+            for name, field in _fields:
                 # Mark draft interface provided by field so it can be adapted
                 #
                 # TODO:  Note that it will adapt, but not properly, but enuogh

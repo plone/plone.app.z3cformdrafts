@@ -102,5 +102,13 @@
         factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
         provides="z3c.form.interfaces.IWidgets"
     />
+    <!-- For Group form; IZ3cDraft will get set above so it will match-->
+    <adapter
+        for="z3c.form.interfaces.IGroup
+            plone.app.z3cformdrafts.interfaces.IZ3cDraft
+            zope.interface.Interface"
+        factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
+        provides="z3c.form.interfaces.IWidgets"
+    />
 
 </configure>
