@@ -130,7 +130,8 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
                     (self.content, field.field), interfaces.IDataManager)
                 try:
                     value = interfaces.IDataConverter(widget).toFieldValue(widget.value)
-                    if getattr(self.content, field.field.getName()) != value:
+                    #if getattr(self.content, field.field.getName(), None) != value:
+                    if getattr(self.content, field.__name__, None) != value:
                         dm.set(value)
                 except ValueError:
                     pass

@@ -54,20 +54,22 @@ class Z3cFormDataContext(object):
         if draft is None:
             return self.content  # return contnet, not context
 
-        # Make sure cache is created fresh incase context changed from last visit
-        # (empty draft)
-        # Draft has to be 'marked' with additional interfaces before the proxy
-        # is created since the proxy caches __providedBy__ and therefore anything
-        # added after proxy is created will not exist in cache
-            #and self.content.portal_type != portal_type
+        # For addform (not editform)
+        # (Forms that do not have a portal type will ignore this section)
+        # - Creates defalut values / missing values on draft (if they exist)
+        # - Draft has to be 'marked' with additional interfaces before the proxy
+        #   is created since the proxy caches __providedBy__ and therefore anything
+        #   added after proxy is created will not exist in cache
+        # - (Makes sure cache is created fresh incase context changed from last visit)
         if (IZ3cDraft.providedBy(draft) == False and self.context.portal_type != portal_type):
             setDefaults = False
             _fields = []
             for field in self.form.fields.items():
                 _fields.append(field)
-            for group in self.form.groups:
-                for field in group.fields.items():
-                    _fields.append(field)
+            if hasattr(self.form, 'groups'):
+                for group in self.form.groups:
+                    for field in group.fields.items():
+                        _fields.append(field)
             for name, field in _fields:
                 # Mark draft interface provided by field so it can be adapted
                 #
@@ -158,12 +160,15 @@ class Z3cFormDraftProxy(object):
     def __getattr__(self, name):
         deleted = getattr(self.__draft, '_proxyDeleted', set())
         if name in deleted:
-            raise AttributeError(name)
+            raise AttributeError, name
 
         if hasattr(self.__draft, name):
             return getattr(self.__draft, name)
 
-        return getattr(self.__target, name)
+        if hasattr(self.__target, name):
+            return getattr(self.__target, name)
+
+        raise AttributeError, name
 
     def __setattr__(self, name, value):
         setattr(self.__draft, name, value)
