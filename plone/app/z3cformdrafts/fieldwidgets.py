@@ -75,10 +75,15 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
             elif not ignoreContext:
                 # If we do not have enough permissions to write to the
                 # attribute, then switch to display mode.
-                dm = zope.component.getMultiAdapter(
-                    (self.content, field.field), interfaces.IDataManager)
-                if not dm.canWrite():
-                    mode = interfaces.DISPLAY_MODE
+                try:
+                    dm = zope.component.getMultiAdapter(
+                        (self.content, field.field), interfaces.IDataManager)
+                    if not dm.canWrite():
+                        mode = interfaces.DISPLAY_MODE
+                except TypeError:
+                    # If datamanager can not adapt, then we can't write and
+                    # must ignore context (since it could not adapt)
+                    ignoreContext = True
             # Step 2: Get the widget for the given field.
             shortName = field.__name__
             newWidget = True
@@ -125,7 +130,7 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
             #-------------------------------------------------------------------
             # Save converted widget value on draft if it different from what is
             # already stored on draft
-            if self.draftable and self.draftWritable == True:
+            if self.draftable and self.draftWritable == True and ignoreContext == False:
                 dm = zope.component.getMultiAdapter(
                     (self.content, field.field), interfaces.IDataManager)
                 try:
