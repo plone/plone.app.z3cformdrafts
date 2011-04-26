@@ -47,13 +47,33 @@ class Z3cFormDataContext(object):
         if not draft and not self.createDraft:
             return self.content
 
+<<<<<<< HEAD
         if not draft:
             beginDrafting(self.context, self.form)
             draft = getCurrentDraft(self.request, create=self.createDraft)
+=======
+        # Can't really do a draft if we don't know the portal_type
+        #if portal_type is None:
+        #    return self.content
+
+        #beginDrafting(self.content, self.form)
+        beginDrafting(self.context, self.form)
+        draft = getCurrentDraft(self.request, create=self.createDraft)
+
+        #from plone.app.z3cformdrafts.tempinterfaces import ITemporaryFileHandler
+        #handler = getMultiAdapter((self.content, self.request),
+        #                          ITemporaryFileHandler)
+        #from plone.app.z3cformdrafts.temporaryfile import TemporaryFileHandler
+        #handler = TemporaryFileHandler(self.content, self.request)
+        #draft = handler.get('draft')
+        #if draft is None and self.createDraft == True:
+        #    draft = handler.create()
+>>>>>>> b98279af0b73d9c43ad7bcd77495c8c0a89e9240
 
         if draft is None:
             return self.content  # return contnet, not context
 
+<<<<<<< HEAD
         # For addform (not editform)
         # (Forms that do not have a portal type will ignore this section)
         # - Creates defalut values / missing values on draft (if they exist)
@@ -61,6 +81,14 @@ class Z3cFormDataContext(object):
         #   is created since the proxy caches __providedBy__ and therefore anything
         #   added after proxy is created will not exist in cache
         # - (Makes sure cache is created fresh incase context changed from last visit)
+=======
+        # Make sure cache is created fresh incase context changed from last visit
+        # (empty draft)
+        # Draft has to be 'marked' with additional interfaces before the proxy
+        # is created since the proxy caches __providedBy__ and therefore anything
+        # added after proxy is created will not exist in cache
+            #and self.content.portal_type != portal_type
+>>>>>>> b98279af0b73d9c43ad7bcd77495c8c0a89e9240
         if (IZ3cDraft.providedBy(draft) == False and self.context.portal_type != portal_type):
             setDefaults = False
             _fields = []
@@ -99,7 +127,13 @@ class Z3cFormDataContext(object):
         if not IDrafting.providedBy(draft):
             zope.interface.alsoProvides(draft, IDrafting)
 
+<<<<<<< HEAD
         proxy = Z3cFormDraftProxy(draft, self.context)
+=======
+        #proxy = Z3cFormDraftProxy(draft, self.content)
+        proxy = Z3cFormDraftProxy(draft, self.context)
+        #IZ3cDraft.providedBy(proxy)
+>>>>>>> b98279af0b73d9c43ad7bcd77495c8c0a89e9240
 
         # TODO: MODIFY INTERFACE to include DRAFT field; not just marker
         self.request['DRAFT'] = proxy
@@ -165,10 +199,18 @@ class Z3cFormDraftProxy(object):
         if hasattr(self.__draft, name):
             return getattr(self.__draft, name)
 
+<<<<<<< HEAD
         if hasattr(self.__target, name):
             return getattr(self.__target, name)
 
         raise AttributeError, name
+=======
+        #return getattr(self.__target, name)
+        try:
+            return getattr(self.__target, name)
+        except AttributeError:
+            pass
+>>>>>>> b98279af0b73d9c43ad7bcd77495c8c0a89e9240
 
     def __setattr__(self, name, value):
         setattr(self.__draft, name, value)
