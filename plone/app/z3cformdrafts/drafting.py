@@ -48,11 +48,13 @@ class Z3cFormDataContext(object):
             return self.content
 
         if not draft:
-            beginDrafting(self.context, self.form)
+            #beginDrafting(self.context, self.form)
+            beginDrafting(self.content, self.form)
             draft = getCurrentDraft(self.request, create=self.createDraft)
 
-        beginDrafting(self.context, self.form)
-        draft = getCurrentDraft(self.request, create=self.createDraft)
+        # XXX: Why did we do this twice; removing for now
+        #beginDrafting(self.context, self.form)
+        #draft = getCurrentDraft(self.request, create=self.createDraft)
 
         if draft is None:
             return self.content  # return contnet, not context
@@ -64,7 +66,8 @@ class Z3cFormDataContext(object):
         #   is created since the proxy caches __providedBy__ and therefore anything
         #   added after proxy is created will not exist in cache
         # - (Makes sure cache is created fresh incase context changed from last visit)
-        if (IZ3cDraft.providedBy(draft) == False and self.context.portal_type != portal_type):
+        #if (IZ3cDraft.providedBy(draft) == False and self.context.portal_type != portal_type):
+        if IZ3cDraft.providedBy(draft) == False and self.form.ignoreContext == True:
             setDefaults = False
             _fields = []
             for field in self.form.fields.items():
@@ -102,7 +105,8 @@ class Z3cFormDataContext(object):
         if not IDrafting.providedBy(draft):
             zope.interface.alsoProvides(draft, IDrafting)
 
-        proxy = Z3cFormDraftProxy(draft, self.context)
+        #proxy = Z3cFormDraftProxy(draft, self.context)
+        proxy = Z3cFormDraftProxy(draft, self.content)
 
         # TODO: MODIFY INTERFACE to include DRAFT field; not just marker
         self.request['DRAFT'] = proxy

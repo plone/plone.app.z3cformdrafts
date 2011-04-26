@@ -38,11 +38,12 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
         if IZ3cDraft.providedBy(request):
             self.content = request.DRAFT
         else:
-            proxy = zope.component.getMultiAdapter((self.content,
+            proxy = zope.component.queryMultiAdapter((self.content,
                                                     self.request,
                                                     self.form), IZ3cFormDataContext)
-            proxy.createDraft = self.createDraft
-            self.content = proxy.adapt()
+            if proxy is not None:
+                proxy.createDraft = self.createDraft
+                self.content = proxy.adapt()
 
         if IZ3cDraft.providedBy(self.content):
             self.draftable = True
@@ -99,14 +100,15 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
                     (field.field, self.request), interfaces.IFieldWidget)
             # Step 2.5:  If widget is draftable and no widget exists, create draft
             if self.draftable == False and IDraftable.providedBy(widget):
-                proxy = zope.component.getMultiAdapter((self.content,
+                proxy = zope.component.queryMultiAdapter((self.content,
                                                         self.request,
                                                         self.form), IZ3cFormDataContext)
-                proxy.createDraft = True
-                self.content = proxy.adapt()
-                if IZ3cDraft.providedBy(self.content):
-                    self.draftable = True
-                    ignoreContext = False
+                if proxy is not None:
+                    proxy.createDraft = True
+                    self.content = proxy.adapt()
+                    if IZ3cDraft.providedBy(self.content):
+                        self.draftable = True
+                        ignoreContext = False
 
             # Step 3: Set the prefix for the widget
             widget.name = prefix + shortName
@@ -154,3 +156,6 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
             # allways ensure that we add all keys and keep the order given from
             # button items
             self._data_keys = uniqueOrderedKeys
+
+        # XXX: Delete me; only used for a breakpoint!
+        assert(self.form)

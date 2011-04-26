@@ -32,9 +32,26 @@
         factory=".datamanager.AttributeField"
     />
 
-    <!-- Basic IForm draft context draft/proxy adapter -->
+    <!-- Basic IForm draft context draft/proxy adapter
+    We only adapt on certain context types or draft could fail trying
+    to pickle objects that are not supposed to be stored.  Add any additional
+    adapters to custom objects not covered.  If
+        Products.CMFCore.interfaces._content.IContentish
+        Products.CMFCore.interfaces._content.IFolderish
+    is too restrictive we could try instead:
+        zope.annotation.interfaces.IAttributeAnnotatable>
+        zope.annotation.interfaces.IAnnotatable>
+    since I am sure most z3cform try objects support this and something that
+    is not meant to be stroed like schema editor would not.
+    -->
     <adapter
-        for="zope.interface.Interface
+        for="Products.CMFCore.interfaces._content.IContentish
+             zope.interface.Interface
+             z3c.form.interfaces.IFieldsForm"
+        factory=".drafting.Z3cFormDataContext"
+        />
+    <adapter
+        for="Products.CMFCore.interfaces._content.IFolderish
              zope.interface.Interface
              z3c.form.interfaces.IFieldsForm"
         factory=".drafting.Z3cFormDataContext"
