@@ -53,3 +53,9 @@ class IZ3cFormDataContext(zope.interface.Interface):
 
     The default implementation simply returns ``form.context``.
     """
+
+
+class IDictDraftProxy(zope.interface.Interface):
+    """Marker interface for the draft proxy where the proxy contains dict
+    context.
+    """

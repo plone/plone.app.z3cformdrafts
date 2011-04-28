@@ -31,6 +31,9 @@
     <adapter
         factory=".datamanager.AttributeField"
     />
+    <adapter
+        factory=".datamanager.DictionaryField"
+    />
 
     <!-- Basic IForm draft context draft/proxy adapter
     We only adapt on certain context types or draft could fail trying
@@ -52,6 +55,13 @@
         />
     <adapter
         for="Products.CMFCore.interfaces._content.IFolderish
+             zope.interface.Interface
+             z3c.form.interfaces.IFieldsForm"
+        factory=".drafting.Z3cFormDataContext"
+        />
+    <!-- for deco -->
+    <adapter
+        for="dict
              zope.interface.Interface
              z3c.form.interfaces.IFieldsForm"
         factory=".drafting.Z3cFormDataContext"

@@ -156,6 +156,3 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
             # allways ensure that we add all keys and keep the order given from
             # button items
             self._data_keys = uniqueOrderedKeys
-
-        # XXX: Delete me; only used for a breakpoint!
-        assert(self.form)

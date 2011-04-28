@@ -32,7 +32,7 @@ from z3c.form.datamanager import DataManager
 
 from plone.app.drafts.interfaces import IDraftProxy
 
-from plone.app.z3cformdrafts.drafting import Z3cFormDraftProxy
+from plone.app.z3cformdrafts.drafting import Z3cFormAttributeDraftProxy
 
 
 class AttributeField(DataManager):
@@ -61,7 +61,7 @@ class AttributeField(DataManager):
         # from adapted_context since it may handle getattr in a custom way like
         # dexterity metadata.  Without a DraftProxy we would be getting the
         # value directly from the content object, which we dont want
-        draftProxy = Z3cFormDraftProxy(self.context._Z3cFormDraftProxy__draft, self.adapted_context)
+        draftProxy = Z3cFormAttributeDraftProxy(self.context._Z3cFormAttributeDraftProxy__draft, self.adapted_context)
         return getattr(draftProxy, self.field.getName())
 
     def query(self, default=interfaces.NO_VALUE):
@@ -85,7 +85,7 @@ class AttributeField(DataManager):
         # from adapted_context since it may handle getattr in a custom way like
         # dexterity metadata.  Without a DraftProxy we would be updating the
         # Content object, which we dont want
-        draftProxy = Z3cFormDraftProxy(self.context._Z3cFormDraftProxy__draft, self.adapted_context)
+        draftProxy = Z3cFormAttributeDraftProxy(self.context._Z3cFormAttributeDraftProxy__draft, self.adapted_context)
         setattr(draftProxy, self.field.getName(), value)
 
     def canAccess(self):
@@ -103,6 +103,7 @@ class AttributeField(DataManager):
         return True
 
 
+from plone.app.z3cformdrafts.interfaces import IDictDraftProxy
 class DictionaryField(DataManager):
     """Dictionary field.
 
@@ -115,35 +116,38 @@ class DictionaryField(DataManager):
     """
 
     zope.component.adapts(
-        dict, zope.schema.interfaces.IField)
+        IDictDraftProxy, zope.schema.interfaces.IField)
 
-    _allowed_data_classes = (
-        dict,
-        persistent.mapping.PersistentMapping,
-        persistent.dict.PersistentDict,
-        )
+    #_allowed_data_classes = (
+    #    dict,
+    #    persistent.mapping.PersistentMapping,
+    #    persistent.dict.PersistentDict,
+    #    )
 
     def __init__(self, data, field):
-        if (not isinstance(data, self._allowed_data_classes) and
-            not mapping.IMapping.providedBy(data)):
-            raise ValueError("Data are not a dictionary: %s" %type(data))
+        #if (not isinstance(data, self._allowed_data_classes) and
+        #    not mapping.IMapping.providedBy(data)):
+        #    raise ValueError("Data are not a dictionary: %s" %type(data))
         self.data = data
         self.field = field
 
     def get(self):
         """See z3c.form.interfaces.IDataManager"""
-        return self.data.get(self.field.__name__, self.field.missing_value)
+        #return self.data.get(self.field.__name__, self.field.missing_value)
+        return getattr(self.data, self.field.__name__, self.field.missing_value)
 
     def query(self, default=interfaces.NO_VALUE):
         """See z3c.form.interfaces.IDataManager"""
-        return self.data.get(self.field.__name__, default)
+        #return self.data.get(self.field.__name__, default)
+        return getattr(self.data, self.field.__name__, default)
 
     def set(self, value):
         """See z3c.form.interfaces.IDataManager"""
         if self.field.readonly:
             raise TypeError("Can't set values on read-only fields name=%s"
                             % self.field.__name__)
-        self.data[self.field.__name__] = value
+        #self.data[self.field.__name__] = value
+        setattr(self.data, self.field.__name__, value)
 
     def canAccess(self):
         """See z3c.form.interfaces.IDataManager"""

@@ -12,7 +12,7 @@ from plone.app.drafts.dexterity import beginDrafting
 from plone.app.drafts.utils import getCurrentDraft
 from plone.app.drafts.interfaces import IDraftProxy
 
-from plone.app.z3cformdrafts.interfaces import IZ3cFormDataContext, IZ3cDraft
+from plone.app.z3cformdrafts.interfaces import IZ3cFormDataContext, IZ3cDraft, IDictDraftProxy
 from plone.app.drafts.interfaces import IDrafting
 
 from zope.interface import implements
@@ -105,8 +105,12 @@ class Z3cFormDataContext(object):
         if not IDrafting.providedBy(draft):
             zope.interface.alsoProvides(draft, IDrafting)
 
-        #proxy = Z3cFormDraftProxy(draft, self.context)
-        proxy = Z3cFormDraftProxy(draft, self.content)
+        # TODO:  Adapt proxy to allow for better future senerios
+        #        and refactor proxy code to own module
+        if isinstance(self.content, dict):
+            proxy = Z3cFormDictDraftProxy(draft, self.content)
+        else:
+            proxy = Z3cFormAttributeDraftProxy(draft, self.content)
 
         # TODO: MODIFY INTERFACE to include DRAFT field; not just marker
         self.request['DRAFT'] = proxy
@@ -130,10 +134,10 @@ class ProxySpecification(ObjectSpecificationDescriptor):
         provided = implementedBy(cls)
 
         # Get interfaces directly provided by the draft proxy
-        provided += getattr(inst._Z3cFormDraftProxy__draft, '__provides__', provided)
+        provided += getattr(inst._Z3cFormAttributeDraftProxy__draft, '__provides__', provided)
 
         # Add the interfaces provided by the target
-        target = aq_base(inst._Z3cFormDraftProxy__target)
+        target = aq_base(inst._Z3cFormAttributeDraftProxy__target)
         if target is None:
             return provided
 
@@ -142,7 +146,7 @@ class ProxySpecification(ObjectSpecificationDescriptor):
         return provided
 
 
-class Z3cFormDraftProxy(object):
+class Z3cFormAttributeDraftProxy(object):
     """Ripped from plone.app.drafts.proxy.DraftProxy to provide a custom
     __providedBy__ ProxySpecification.
 
@@ -161,8 +165,8 @@ class Z3cFormDraftProxy(object):
     implements(IDraftProxy)
 
     def __init__(self, draft, target):
-        self.__dict__['_Z3cFormDraftProxy__draft'] = draft
-        self.__dict__['_Z3cFormDraftProxy__target'] = target
+        self.__dict__['_Z3cFormAttributeDraftProxy__draft'] = draft
+        self.__dict__['_Z3cFormAttributeDraftProxy__target'] = target
 
     def __getattr__(self, name):
         deleted = getattr(self.__draft, '_proxyDeleted', set())
@@ -174,6 +178,88 @@ class Z3cFormDraftProxy(object):
 
         if hasattr(self.__target, name):
             return getattr(self.__target, name)
+
+        raise AttributeError, name
+
+    def __setattr__(self, name, value):
+        setattr(self.__draft, name, value)
+
+        deleted = getattr(self.__draft, '_proxyDeleted', set())
+        if name in deleted:
+            deleted.remove(name)
+            self.__draft._p_changed
+
+    def __delattr__(self, name):
+        getattr(self, name)  # allow attribute error to be raised
+
+        # record deletion
+        deleted = getattr(self.__draft, '_proxyDeleted', set())
+        if name not in deleted:
+            deleted.add(name)
+            setattr(self.__draft, '_proxyDeleted', deleted)
+
+        # only delete on draft
+        if hasattr(self.__draft, name):
+            delattr(self.__draft, name)
+
+class DictProxySpecification(ObjectSpecificationDescriptor):
+    """A __providedBy__ decorator that returns the interfaces provided by
+    the draft and the proxy
+    """
+
+    def __get__(self, inst, cls=None):
+
+        # We're looking at a class - fall back on default
+        if inst is None:
+            return getObjectSpecification(cls)
+
+        # Get the interfaces implied by the class as a starting point.
+        provided = implementedBy(cls)
+
+        # Get interfaces directly provided by the draft proxy
+        provided += getattr(inst._Z3cFormDictDraftProxy__draft, '__provides__', provided)
+
+        # Add the interfaces provided by the target
+        target = aq_base(inst._Z3cFormDictDraftProxy__target)
+        if target is None:
+            return provided
+
+        provided += providedBy(target)
+
+        return provided
+
+class Z3cFormDictDraftProxy(object):
+    """Ripped from plone.app.drafts.proxy.DraftProxy to provide a custom
+    __providedBy__ ProxySpecification.
+
+    A simple proxy object that is initialised with a draft object and the
+    underlying target. All attribute and annotation writes are performed
+    against the draft; all reads are performed against the draft unless the
+    specified attribute or key is not not found, in which case the they are
+    read from the target object instead.
+
+    Attribute deletions are saved in a set ``draft._proxyDeleted``. Annotation
+    key deletions are saved in a set ``deaft._proxyAnnotationsDeleted``.
+    """
+
+    __providedBy__ = DictProxySpecification()
+
+    implements(IDictDraftProxy)
+
+    def __init__(self, draft, target):
+        self.__dict__['_Z3cFormDictDraftProxy__draft'] = draft
+        self.__dict__['_Z3cFormDictDraftProxy__target'] = target
+
+    def __getattr__(self, name):
+        deleted = getattr(self.__draft, '_proxyDeleted', set())
+        if name in deleted:
+            raise AttributeError, name
+
+        if hasattr(self.__draft, name):
+            return getattr(self.__draft, name)
+
+        if self.__target.has_key(name):
+            return self.__target.get(name)
 
         raise AttributeError, name
 
