@@ -29,7 +29,7 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
         super(FieldWidgets, self).__init__(form, request, content)
 
         # Check to see if we were called by kss validation
-        isKssValidation = ('kss_z3cform_inline_validation' in request.getURL().split('/'))
+        isKssValidation  = self.request.get('PATH_INFO', '').endswith('kss_z3cform_inline_validation')
         if isKssValidation == True and self.allowKssValidation == False:
             self.draftWritable = False
 
@@ -38,12 +38,12 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
         if IZ3cDraft.providedBy(request):
             self.content = request.DRAFT
         else:
-            proxy = zope.component.queryMultiAdapter((self.content,
+            dataContext = zope.component.queryMultiAdapter((self.content,
                                                     self.request,
                                                     self.form), IZ3cFormDataContext)
-            if proxy is not None:
-                proxy.createDraft = self.createDraft
-                self.content = proxy.adapt()
+            if dataContext is not None:
+                dataContext.createDraft = self.createDraft
+                self.content = dataContext.adapt()
 
         if IZ3cDraft.providedBy(self.content):
             self.draftable = True
@@ -76,15 +76,15 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
             elif not ignoreContext:
                 # If we do not have enough permissions to write to the
                 # attribute, then switch to display mode.
-                try:
-                    dm = zope.component.getMultiAdapter(
-                        (self.content, field.field), interfaces.IDataManager)
-                    if not dm.canWrite():
-                        mode = interfaces.DISPLAY_MODE
-                except TypeError:
-                    # If datamanager can not adapt, then we can't write and
-                    # must ignore context (since it could not adapt)
-                    ignoreContext = True
+                #try:
+                dm = zope.component.getMultiAdapter(
+                    (self.content, field.field), interfaces.IDataManager)
+                if not dm.canWrite():
+                    mode = interfaces.DISPLAY_MODE
+                #except TypeError:
+                #    # If datamanager can not adapt, then we can't write and
+                #    # must ignore context (since it could not adapt)
+                #    ignoreContext = True
             # Step 2: Get the widget for the given field.
             shortName = field.__name__
             newWidget = True
@@ -137,8 +137,8 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
                     (self.content, field.field), interfaces.IDataManager)
                 try:
                     value = interfaces.IDataConverter(widget).toFieldValue(widget.value)
-                    #if getattr(self.content, field.field.getName(), None) != value:
-                    if getattr(self.content, field.__name__, None) != value:
+                    #if getattr(self.content, field.__name__, None) != value:
+                    if dm.query() != value:
                         dm.set(value)
                 except ValueError:
                     pass

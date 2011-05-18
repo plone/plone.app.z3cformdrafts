@@ -74,7 +74,7 @@ and errors exist; the image will not load in the error page (it won't get lost).
 Other Opt-in Behaviors
 ----------------------
 <element value="plone.app.dexterity.behaviors.drafts.IDraftAutoSaveBehavior" />
-<element value="plone.app.dexterity.behaviors.drafts.IDraftSaveBehavior" />
+<element value="plone.app.z3cformdrafts.interfaces.IDraftSaveBehavior" />
 <element value="dexterity.draftspreviewbehavior.IDraftPreviewBehavior" />
 
 IDraftAutoSaveBehavior enables draft to be saved automatically if kss validation
@@ -112,7 +112,7 @@ Enable behaviors requires to enable draft on z3cform geterated content type:
      <element value="plone.app.dexterity.behaviors.drafts.IDraftAutoSaveBehavior" />
 
      <!-- To enable user to be able to manually save the draft -->
-     <element value="plone.app.dexterity.behaviors.drafts.IDraftSaveBehavior" />
+     <element value="plone.app.z3cformdrafts.interfaces.IDraftSaveBehavior" />
 
      <!-- To enable previews on the draft content type -->
      <element value="dexterity.draftspreviewbehavior.IDraftPreviewBehavior" />

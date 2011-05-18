@@ -2,25 +2,27 @@ import zope.component
 import zope.interface
 from z3c.form import interfaces
 
+
 def MultiWidget_getWidget(self, idx):
     # This monkey patch sets the widgets ignoreContext, ignoreRequest and
     # context based on self.ignoreContext, self.ignoreRequest and self.context
-        """Setup widget based on index id with or without value."""
-        valueType = self.field.value_type
-        widget = zope.component.getMultiAdapter((valueType, self.request),
-            interfaces.IFieldWidget)
-        self.setName(widget, idx)
-        widget.mode = self.mode
-        widget.ignoreContext = self.ignoreContext
-        widget.ignoreRequest = self.ignoreRequest
-        widget.context = self.context
-        #set widget.form (objectwidget needs this)
-        if interfaces.IFormAware.providedBy(self):
-            widget.form = self.form
-            zope.interface.alsoProvides(
-                widget, interfaces.IFormAware)
-        widget.update()
-        return widget
+    """Setup widget based on index id with or without value."""
+    valueType = self.field.value_type
+    widget = zope.component.getMultiAdapter((valueType, self.request),
+        interfaces.IFieldWidget)
+    self.setName(widget, idx)
+    widget.mode = self.mode
+    widget.ignoreContext = self.ignoreContext
+    widget.ignoreRequest = self.ignoreRequest
+    widget.context = self.context
+    #set widget.form (objectwidget needs this)
+    if interfaces.IFormAware.providedBy(self):
+        widget.form = self.form
+        zope.interface.alsoProvides(
+            widget, interfaces.IFormAware)
+    widget.update()
+    return widget
+
 
 def MultiWidget_extract(self, default=interfaces.NO_VALUE):
     # This monkey patch allows extract to be compatible with drafts by allowing
@@ -33,7 +35,7 @@ def MultiWidget_extract(self, default=interfaces.NO_VALUE):
     values = []
     append = values.append
     # extract value for existing widgets
-    value = zope.component.getMultiAdapter( (self.context, self.field),
+    value = zope.component.getMultiAdapter((self.context, self.field),
                                             interfaces.IDataManager).query()
     for idx in range(counter):
         widget = self.getWidget(idx)

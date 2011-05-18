@@ -25,17 +25,22 @@ setup(name='plone.app.z3cformdrafts',
       zip_safe=False,
       install_requires=[
           'setuptools',
-          'plone.dexterity',
-          'plone.namedfile',
+          #'plone.dexterity',
+          #'plone.namedfile',
           'plone.app.drafts',
-          'plone.app.textfield',
+          #'plone.app.textfield',
           'plone.z3cformbuttonoverrides',
           # Zope 2
           'zope.interface',
           'zope.component',
           'z3c.form',
       ],
-      entry_points="""
+      extras_require = {
+          'test': [
+              'plone.app.dexterity',
+          ]
+      },      
+      entry_point="""
       [z3c.autoinclude.plugin]
       target = plone
       """,

@@ -27,6 +27,12 @@ class IDraftCancelBehavior(IButtonAndHandlerSubscriber):
     """
 
 
+class IDraftSaveBehavior(IButtonAndHandlerSubscriber):
+    """Marker interfac to enable custom 'save draft' button and handler override
+    This is set by an opt-in behavior statement
+    """
+
+
 class IZ3cDraft(IDraft):
     """Marker interface to indicate a z3c.form draft is present
     """
@@ -55,7 +61,7 @@ class IZ3cFormDataContext(zope.interface.Interface):
     """
 
 
-class IDictDraftProxy(zope.interface.Interface):
-    """Marker interface for the draft proxy where the proxy contains dict
-    context.
-    """
+#class IDictDraftProxy(zope.interface.Interface):
+#    """Marker interface for the draft proxy where the proxy contains dict
+#    context.
+#    """

@@ -1,0 +1,15 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:zcml="http://namespaces.zope.org/zcml"
+    xmlns:plone="http://namespaces.plone.org/plone"
+    i18n_domain="plone.app.z3cformdrafts">
+
+  <!-- for deco (XXX: opps; will grab most everything... target specific interface)-->
+  <adapter
+      for="dict
+           zope.interface.Interface
+           z3c.form.interfaces.IFieldsForm"
+      factory=".drafting.Z3cFormDataContext"
+      />
+
+</configure>

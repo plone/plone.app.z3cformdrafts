@@ -1,141 +1,145 @@
 <configure
     xmlns="http://namespaces.zope.org/zope"
+    xmlns:five="http://namespaces.zope.org/five"
+    xmlns:genericsetup="http://namespaces.zope.org/genericsetup"
     xmlns:zcml="http://namespaces.zope.org/zcml"
-    xmlns:plone="http://namespaces.plone.org/plone"
     xmlns:monkey="http://namespaces.plone.org/monkey"
+    xmlns:plone="http://namespaces.plone.org/plone"
     i18n_domain="plone.app.z3cformdrafts">
 
-    <include package="z3c.form" file="meta.zcml" />
-    <include package="z3c.form" />
+  <include package="z3c.form" file="meta.zcml" />
+  <include package="z3c.form" />
+  <include package="plone.app.drafts" />
 
-    <!-- Temporary Monkey patch to allow drafts to work with list forms
-    TODO:  submit patch to zope for inclusion in future z3c.form update -->
-    <include package="collective.monkeypatcher" file="meta.zcml" />
-    <monkey:patch
-        description="Patches bug in MultiWidget to set ignoreContext/ignoreRequest properly"
-        class="z3c.form.widget.MultiWidget"
-        original="getWidget"
-        replacement=".patch.MultiWidget_getWidget"
-        />
-    <monkey:patch
-        description="Patches MultiWidget extract to function with drafts"
-        class="z3c.form.widget.MultiWidget"
-        original="extract"
-        replacement=".patch.MultiWidget_extract"
-        />
+  <!-- Temporary Monkey patch to allow drafts to work with list forms
+  TODO:  submit patch to zope for inclusion in future z3c.form update -->
+  <include package="collective.monkeypatcher" file="meta.zcml" />
+  <monkey:patch
+      description="Patches bug in MultiWidget to set ignoreContext/ignoreRequest properly"
+      class="z3c.form.widget.MultiWidget"
+      original="getWidget"
+      replacement=".patch.MultiWidget_getWidget"
+      />
+  <monkey:patch
+      description="Patches MultiWidget extract to function with drafts"
+      class="z3c.form.widget.MultiWidget"
+      original="extract"
+      replacement=".patch.MultiWidget_extract"
+      />
 
-    <!-- include plone.app.drafts -->
-    <include package="plone.app.drafts"/>
+   <!-- Data Managers -->
+  <adapter
+      for=".interfaces.IZ3cDraft
+           zope.schema.interfaces.IField"
+      factory="z3c.form.datamanager.DictionaryField"
+      />
 
-     <!-- Data Managers -->
-    <adapter
-        factory=".datamanager.AttributeField"
-    />
-    <adapter
-        factory=".datamanager.DictionaryField"
-    />
+  <!-- Basic IForm draft context draft/proxy adapter
+  We only adapt on certain context types or draft could fail trying
+  to pickle objects that are not supposed to be stored.  Add any additional
+  adapters to custom objects not covered.  If
+      Products.CMFCore.interfaces._content.IContentish
+      Products.CMFCore.interfaces._content.IFolderish
+  is too restrictive we could try instead:
+      zope.annotation.interfaces.IAttributeAnnotatable>
+      zope.annotation.interfaces.IAnnotatable>
+  since I am sure most z3cform try objects support this and something that
+  is not meant to be stroed like schema editor would not.
+  -->
+  <adapter
+      for="Products.CMFCore.interfaces._content.IContentish
+           zope.interface.Interface
+           z3c.form.interfaces.IFieldsForm"
+      factory=".drafting.Z3cFormDataContext"
+      />
+  <adapter
+      for="Products.CMFCore.interfaces._content.IFolderish
+           zope.interface.Interface
+           z3c.form.interfaces.IFieldsForm"
+      factory=".drafting.Z3cFormDataContext"
+      />
 
-    <!-- Basic IForm draft context draft/proxy adapter
-    We only adapt on certain context types or draft could fail trying
-    to pickle objects that are not supposed to be stored.  Add any additional
-    adapters to custom objects not covered.  If
-        Products.CMFCore.interfaces._content.IContentish
-        Products.CMFCore.interfaces._content.IFolderish
-    is too restrictive we could try instead:
-        zope.annotation.interfaces.IAttributeAnnotatable>
-        zope.annotation.interfaces.IAnnotatable>
-    since I am sure most z3cform try objects support this and something that
-    is not meant to be stroed like schema editor would not.
-    -->
-    <adapter
-        for="Products.CMFCore.interfaces._content.IContentish
-             zope.interface.Interface
-             z3c.form.interfaces.IFieldsForm"
-        factory=".drafting.Z3cFormDataContext"
-        />
-    <adapter
-        for="Products.CMFCore.interfaces._content.IFolderish
-             zope.interface.Interface
-             z3c.form.interfaces.IFieldsForm"
-        factory=".drafting.Z3cFormDataContext"
-        />
-    <!-- for deco -->
-    <adapter
-        for="dict
-             zope.interface.Interface
-             z3c.form.interfaces.IFieldsForm"
-        factory=".drafting.Z3cFormDataContext"
-        />
+  <!-- zc3form will adapt these.  this is where we override
+       the buttons and handlers -->
+  <adapter
+      for="z3c.form.interfaces.IAddForm
+           plone.app.z3cformdrafts.interfaces.IZ3cDraft
+           zope.interface.Interface"
+      factory="plone.z3cformbuttonoverrides.buttonoverrides.ButtonActions"
+      />
+  <adapter
+      for="z3c.form.interfaces.IEditForm
+           plone.app.z3cformdrafts.interfaces.IZ3cDraft
+           zope.interface.Interface"
+      factory="plone.z3cformbuttonoverrides.buttonoverrides.ButtonActions"
+      />
 
-    <!-- zc3form will adapt these.  this is where we override
-         the buttons and handlers -->
-    <adapter
-        for="z3c.form.interfaces.IAddForm
-             plone.app.z3cformdrafts.interfaces.IZ3cDraft
-             zope.interface.Interface"
-        factory="plone.z3cformbuttonoverrides.buttonoverrides.ButtonActions"
-        />
-    <adapter
-        for="z3c.form.interfaces.IEditForm
-             plone.app.z3cformdrafts.interfaces.IZ3cDraft
-             zope.interface.Interface"
-        factory="plone.z3cformbuttonoverrides.buttonoverrides.ButtonActions"
-        />
+  <!-- Draft DefaultAddForm button & handler overrides -->
+  <subscriber
+      for="z3c.form.interfaces.IAddForm
+           plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
+      handler=".buttonoverrides.AddSubmitDraftButtonAndHandlerSubscriber"
+      />
+  <subscriber
+      for="z3c.form.interfaces.IAddForm
+           plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
+      handler=".buttonoverrides.AddCancelDraftButtonAndHandlerSubscriber"
+      />
 
-    <!-- Draft DefaultAddForm button & handler overrides -->
-    <subscriber
-    for="z3c.form.interfaces.IAddForm
-         plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
-    handler=".buttonoverrides.AddSubmitDraftButtonAndHandlerSubscriber"
-    />
-    <subscriber
-    for="z3c.form.interfaces.IAddForm
-         plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
-    handler=".buttonoverrides.AddCancelDraftButtonAndHandlerSubscriber"
-    />
+  <!-- Draft DefaultEditForm button & handler overrides -->
+  <subscriber
+      for="z3c.form.interfaces.IEditForm
+           plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
+      handler=".buttonoverrides.EditSubmitDraftButtonAndHandlerSubscriber"
+      />
+  <subscriber
+      for="z3c.form.interfaces.IEditForm
+           plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
+      handler=".buttonoverrides.EditCancelDraftButtonAndHandlerSubscriber"
+      />
 
-    <!-- Draft DefaultEditForm button & handler overrides -->
-    <subscriber
-    for="z3c.form.interfaces.IEditForm
-         plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
-    handler=".buttonoverrides.EditSubmitDraftButtonAndHandlerSubscriber"
-    />
-    <subscriber
-    for="z3c.form.interfaces.IEditForm
-         plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
-    handler=".buttonoverrides.EditCancelDraftButtonAndHandlerSubscriber"
-    />
+  <!-- Z3CFormDrafts field widget adapters -->
+  <adapter
+      for="z3c.form.interfaces.IInputForm
+           z3c.form.interfaces.IFormLayer
+           zope.interface.Interface"
+      factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
+      provides="z3c.form.interfaces.IWidgets"
+      />
+  <!--Won't need these if we use IInputForm-->
+  <adapter
+      for="z3c.form.interfaces.IAddForm
+           z3c.form.interfaces.IFormLayer
+           zope.interface.Interface"
+      factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
+      provides="z3c.form.interfaces.IWidgets"
+      />
+  <adapter
+      for="z3c.form.interfaces.IEditForm
+           z3c.form.interfaces.IFormLayer
+           zope.interface.Interface"
+      factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
+      provides="z3c.form.interfaces.IWidgets"
+      />
+  <!-- For Group form; IZ3cDraft will get set above so it will match-->
+  <adapter
+      for="z3c.form.interfaces.IGroup
+           plone.app.z3cformdrafts.interfaces.IZ3cDraft
+           zope.interface.Interface"
+      factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
+      provides="z3c.form.interfaces.IWidgets"
+      />
 
-    <!-- Z3CFormDrafts field widget adapters -->
-    <adapter
-        for="z3c.form.interfaces.IInputForm
-            z3c.form.interfaces.IFormLayer
-            zope.interface.Interface"
-        factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
-        provides="z3c.form.interfaces.IWidgets"
-    />
-    <!--Won't need these if we use IInputForm-->
-    <adapter
-        for="z3c.form.interfaces.IAddForm
-            z3c.form.interfaces.IFormLayer
-            zope.interface.Interface"
-        factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
-        provides="z3c.form.interfaces.IWidgets"
-    />
-    <adapter
-        for="z3c.form.interfaces.IEditForm
-            z3c.form.interfaces.IFormLayer
-            zope.interface.Interface"
-        factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
-        provides="z3c.form.interfaces.IWidgets"
-    />
-    <!-- For Group form; IZ3cDraft will get set above so it will match-->
-    <adapter
-        for="z3c.form.interfaces.IGroup
-            plone.app.z3cformdrafts.interfaces.IZ3cDraft
-            zope.interface.Interface"
-        factory="plone.app.z3cformdrafts.fieldwidgets.FieldWidgets"
-        provides="z3c.form.interfaces.IWidgets"
-    />
+  <include zcml:condition="installed plone.app.dexterity" file="dexterity.zcml" />
+  <include zcml:condition="installed plone.app.deco" file="deco.zcml" />
+
+  <genericsetup:registerProfile
+      name="default"
+      title="Zc3 Form Drafts"
+      description="Save draft copy for z3cform, dextrity, deco, etc.."
+      directory="profiles/default"
+      provides="Products.GenericSetup.interfaces.EXTENSION"
+      for="Products.CMFPlone.interfaces.IPloneSiteRoot"
+      />
 
 </configure>

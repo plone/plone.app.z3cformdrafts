@@ -1,0 +1,56 @@
+<configure
+    xmlns="http://namespaces.zope.org/zope"
+    xmlns:zcml="http://namespaces.zope.org/zcml"
+    xmlns:plone="http://namespaces.plone.org/plone"
+    i18n_domain="plone.app.z3cformdrafts">
+
+    <plone:behavior
+        title="IDraftable"
+        description="Marks object as IDraftable to allow drafting of objects"
+        provides="plone.app.drafts.interfaces.IDraftable"
+        marker="plone.app.drafts.interfaces.IDraftable"
+    />
+
+    <plone:behavior
+        title="IDraftAutoSaveBehavior"
+        description="Marks object as IDraftAutoSaveBehavior to allow automatic saving of drafts if kss validateion is enabled"
+        provides="plone.app.z3cformdrafts.interfaces.IDraftAutoSaveBehavior"
+        marker="plone.app.z3cformdrafts.interfaces.IDraftAutoSaveBehavior"
+    />
+
+    <plone:behavior
+        title="IDraftSaveBehavior"
+        description="Marks object as IDraftSaveBehavior to allow manual saving of drafts ('Draft' button)"
+        provides=".dexterity.IDraftSaveBehavior"
+        marker="plone.app.z3cformdrafts.interfaces.IDraftSaveBehavior"
+    />
+
+    <!-- Z3CFormDrafts field widget adapters -->
+    <adapter
+        for="plone.dexterity.browser.add.DefaultAddForm
+            z3c.form.interfaces.IFormLayer
+            zope.interface.Interface"
+        factory=".dexterity.DexterityFieldWidgets"
+        provides="z3c.form.interfaces.IWidgets"
+    />
+    <adapter
+        for="plone.dexterity.browser.edit.DefaultEditForm
+             z3c.form.interfaces.IFormLayer
+             zope.interface.Interface"
+        factory=".dexterity.DexterityFieldWidgets"
+        provides="z3c.form.interfaces.IWidgets"
+    />
+
+    <!-- Draft Default<Add/Edit>Form button & handler overrides -->
+    <subscriber
+        for="plone.dexterity.browser.add.DefaultAddForm
+             plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
+        handler=".dexterity.AddSaveDraftButtonAndHandlerSubscriber"
+    />
+    <subscriber
+        for="plone.dexterity.browser.edit.DefaultEditForm
+             plone.z3cformbuttonoverrides.interfaces.IButtonOverrideEvent"
+        handler=".dexterity.EditSaveDraftButtonAndHandlerSubscriber"
+    />
+
+</configure>
