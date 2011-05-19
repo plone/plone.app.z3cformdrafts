@@ -11,7 +11,7 @@ import zope.schema.interfaces
 
 from z3c.form import interfaces
 
-from plone.app.drafts.interfaces import IDrafting
+from plone.app.drafts.interfaces import IDrafting, IDraftable
 from plone.app.drafts.dexterity import beginDrafting
 from plone.app.drafts.utils import getCurrentDraft
 
@@ -34,6 +34,14 @@ class Z3cFormDataContext(object):
         """If we are drafting a content item, record form data information to the
         draft, but read existing data from the underlying object.
         """
+
+        # Check to see if we have a cahced copy already
+        if IZ3cDraft.providedBy(self.request):
+            return self.request.DRAFT
+
+        if IDraftable.providedBy(self.request):
+            self.createDraft = True
+
         # Set up the draft (sets cookies, markers, etc)
         draft = getCurrentDraft(self.request, create=False)
         if not draft and not self.createDraft:

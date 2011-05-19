@@ -12,7 +12,8 @@ import z3c.form.field
 
 from plone.app.z3cformdrafts.interfaces import IZ3cDraft
 
-from plone.app.z3cformdrafts.interfaces import IZ3cFormDataContext
+from plone.app.z3cformdrafts.interfaces import IZ3cFormDataContext, IDraftAutoSaveBehavior
+
 from plone.app.drafts.interfaces import IDraftable
 
 
@@ -21,7 +22,6 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
 
     allowKssValidation = False
     ignoreContext = False
-    createDraft = False
     draftWritable = True
     draftable = False
 
@@ -29,21 +29,15 @@ class FieldWidgets(z3c.form.field.FieldWidgets):
         super(FieldWidgets, self).__init__(form, request, content)
 
         # Check to see if we were called by kss validation
-        isKssValidation  = self.request.get('PATH_INFO', '').endswith('kss_z3cform_inline_validation')
-        if isKssValidation == True and self.allowKssValidation == False:
+        isKssValidation = self.request.get('PATH_INFO', '').endswith('kss_z3cform_inline_validation')
+        if isKssValidation == True and not IDraftAutoSaveBehavior.providedBy(self.request):
             self.draftWritable = False
 
-        # A draft was already created, so lets use it to save time
-        # (this may happen when group update() is called)
-        if IZ3cDraft.providedBy(request):
-            self.content = request.DRAFT
-        else:
-            dataContext = zope.component.queryMultiAdapter((self.content,
-                                                    self.request,
-                                                    self.form), IZ3cFormDataContext)
-            if dataContext is not None:
-                dataContext.createDraft = self.createDraft
-                self.content = dataContext.adapt()
+        dataContext = zope.component.queryMultiAdapter((self.content,
+                                                self.request,
+                                                self.form), IZ3cFormDataContext)
+        if dataContext is not None:
+            self.content = dataContext.adapt()
 
         if IZ3cDraft.providedBy(self.content):
             self.draftable = True

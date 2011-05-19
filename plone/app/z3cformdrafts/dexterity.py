@@ -14,9 +14,9 @@ from plone.dexterity.browser.edit import DefaultEditForm
 from plone.dexterity.browser.add import DefaultAddForm
 
 from plone.z3cformbuttonoverrides.buttonoverrides import ButtonAndHandlerSubscriber
-from plone.z3cformbuttonoverrides.interfaces import IButtonAndHandlerSubscriber
 
-from plone.app.z3cformdrafts.interfaces import IDraftSaveBehavior
+from plone.app.z3cformdrafts.interfaces import IDraftSaveBehavior, IDraftAutoSaveBehavior
+from plone.app.drafts.interfaces import IDraftable
 from plone.app.z3cformdrafts.fieldwidgets import FieldWidgets
 
 
@@ -28,10 +28,10 @@ class DexterityFieldWidgets(FieldWidgets):
 
         # Don't allow autosave if IDraftAutoSaveBehavior is not enabled
         if 'plone.app.z3cformdrafts.interfaces.IDraftAutoSaveBehavior' in fti.behaviors:
-            self.allowKssValidation = True
+            zope.interface.alsoProvides(request, IDraftAutoSaveBehavior)
 
         if 'plone.app.drafts.interfaces.IDraftable' in fti.behaviors:
-            self.createDraft = True
+            zope.interface.alsoProvides(request, IDraftable)
 
         super(DexterityFieldWidgets, self).__init__(form, request, content)
 
