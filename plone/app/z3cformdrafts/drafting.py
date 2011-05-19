@@ -37,7 +37,7 @@ class Z3cFormDataContext(object):
 
         # Check to see if we have a cahced copy already
         if IZ3cDraft.providedBy(self.request):
-            return self.request.DRAFT
+            return self.request.DRAFT.context
 
         if IDraftable.providedBy(self.request):
             self.createDraft = True
@@ -84,8 +84,10 @@ class Z3cFormDataContext(object):
             zope.interface.alsoProvides(context, IDrafting)
             setattr(draft, 'context', context)
 
-        # Cache draft
-        self.request['DRAFT'] = context
+        zope.interface.alsoProvides(draft, IZ3cDraft)
         zope.interface.alsoProvides(self.request, IZ3cDraft)
+
+        # Cache draft
+        self.request['DRAFT'] = draft
 
         return context
