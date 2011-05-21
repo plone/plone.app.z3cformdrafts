@@ -34,6 +34,7 @@ setup(name='plone.app.z3cformdrafts',
           'zope.interface',
           'zope.component',
           'z3c.form',
+          'plone.formwidget.namedfile>=1.0.1dev',
       ],
       extras_require = {
           'test': [

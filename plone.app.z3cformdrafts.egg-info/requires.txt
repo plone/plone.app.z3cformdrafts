@@ -4,6 +4,7 @@ plone.z3cformbuttonoverrides
 zope.interface
 zope.component
 z3c.form
+plone.formwidget.namedfile>=1.0.1dev
 
 [test]
 plone.app.dexterity
